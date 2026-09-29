@@ -1,246 +1,173 @@
-# Go for Visual Studio Code
+# Gon for Visual Studio Code
 
-[![Slack](https://img.shields.io/badge/slack-gophers-green.svg?style=flat)](https://gophers.slack.com/messages/vscode/)
+Go and Gon language support, derived from the official Go extension. This fork
+has its own extension ID, `gon-lang.gon`. It can be your single extension for both
+languages: disable the official `golang.go` extension in the workspace.
 
-<!--TODO: We should add a badge for the build status or link to the build dashboard.-->
+The Gon compiler and `gonpls` language server are maintained in the Gon toolchain
+repository. This repository contains only the editor extension. It does not
+install or replace Go, gopls, Gon, or gonpls automatically.
 
-[The VS Code Go extension](https://marketplace.visualstudio.com/items?itemName=golang.go)
-provides rich language support for the
-[Go programming language](https://go.dev/).
+## Use
 
-## Requirements
+1. Install the Gon toolchain and expose its `gon` and `gonpls` commands.
+2. Install this extension's VSIX (see Build below), disable **Go** (`golang.go`)
+   in the workspace, and reload VS Code.
+3. Open a project and run **Gon: Enable for This Project**, or add
+   `"gon.enabled": true` to that folder's `.vscode/settings.json`.
+4. Open a `.go` file. The editor language becomes **Gon** and its language server
+   is `gonpls`. Ordinary Go projects remain **Go**; this same extension uses
+   official `gopls` for them and `go` for execution.
 
-* Visual Studio Code 1.90 or newer (or editors compatible with VS Code 1.90+ APIs)
-* Go 1.21 or newer.
+You can keep Go and Gon folders open in the same multi-root window. Each Gon
+folder has its own LSP client and compiler settings. Standard Go projects also
+get their own official gopls client when the Go extension is disabled. This extension does not
+register `.go` as a global Gon file association. **Gon: Disable for This Project**
+restores the Go language mode.
 
-## Quick Start
+Configuration for explicit tool paths:
 
-Welcome! 👋🏻<br/>
-Whether you are new to Go or an experienced Go developer, we hope this
-extension fits your needs and enhances your development experience.
-
-1.  Install [Go](https://go.dev) 1.21 or newer if you haven't already.
-
-1.  Install the [VS Code Go extension].
-
-1.  Open any Go file or go.mod file to automatically activate the extension. The
-    [Go status bar](https://github.com/golang/vscode-go/wiki/ui) appears in the
-    bottom right corner of the window and displays your Go version.
-
-1.  The extension depends on `go`, `gopls` (the Go language server), and optional
-    tools depending on your settings. If `gopls` is missing, the extension will
-    try to install it. The :zap: sign next to the Go version indicates
-    the language server is running, and you are ready to go.
-
-<p align="center">
-<img src="docs/images/gettingstarted.gif" width=75%>
-<br/>
-<em>(Install Missing Tools)</em>
-</p>
-
-You are ready to Go :-) &nbsp;&nbsp; 🎉🎉🎉
-
-## What's next
-
-* Explore more [features][full feature breakdown] of the VS Code Go extension.
-* View the
-  [settings documentation](https://github.com/golang/vscode-go/wiki/settings)
-	and [advanced topics](https://github.com/golang/vscode-go/wiki/advanced) to
-	customize the extension.
-* View the [tools documentation](https://github.com/golang/vscode-go/wiki/tools)
-  for a complete list of tools the VS Code Go extension depends on. You can
-  install additional tools and update them by using "Go: Install/Update Tools".
-* Solve issues with the
-  [general troubleshooting](https://github.com/golang/vscode-go/wiki/troubleshooting)
-	and [debugging troubleshooting](https://github.com/golang/vscode-go/wiki/debugging#troubleshooting)
-	guides.
-* [file an issue](https://github.com/golang/vscode-go/issues/new/choose) for
-  problems with the extension.
-* Start a [GitHub discussion](https://github.com/golang/vscode-go/discussions)
-  or get help on [Stack Overflow].
-* Explore Go language resources on [go.dev/learn](https://go.dev/learn) and
-  [golang.org/help](https://golang.org/help).
-
-If you are new to Go, [this article](https://golang.org/doc/code.html) provides
-the overview on Go code organization and basic `go` commands. Watch ["Getting
-started with VS Code Go"] for an explanation of how to build your first Go
-application using VS Code Go.
-
-## Feature highlights
-
-* [IntelliSense] - Results appear for symbols as you type.
-* [Code navigation] - Jump to or peek at a symbol's declaration.
-* [Code editing] - Support for saved snippets, formatting and code organization,
-  and automatic organization of imports.
-* [Diagnostics] -  Build, vet, and lint errors shown as you type or on save.
-* Enhanced support for [testing] and [debugging]
-
-See the [full feature breakdown] for more details.
-
-<p align=center>
-<img src="docs/images/completion-signature-help.gif" width=75%>
-<br/>
-<em>(Code completion and Signature Help)</em>
-</p>
-
-In addition to integrated editing features, the extension provides several
-commands for working with Go files. You can access any of these by opening the
-Command Palette (`Ctrl+Shift+P` on Linux/Windows and `Cmd+Shift+P` on Mac), and
-then typing in the command name. See the
-[full list of commands](https://github.com/golang/vscode-go/wiki/commands#detailed-list) provided by this
-extension.
-
-<p align=center>
-<img src="docs/images/toggletestfile.gif" width=75%>
-<br/><em>(Toggle Test File)</em></p>
-
-**⚠️ Note**: the default syntax highlighting for Go files is provided by a
-[TextMate rule](https://github.com/worlpaker/go-syntax) embedded in VS
-Code, not by this extension.
-
-For better syntax highlighting, we recommend enabling
-[semantic highlighting](https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide)
-by turning on [Gopls' `ui.semanticTokens` setting](https://github.com/golang/vscode-go/wiki/settings#uisemantictokens).
-    ```
-    "gopls": { "ui.semanticTokens": true }
-    ```
-
-## Setting up your workspace
-
-The VS Code Go extension supports both `GOPATH` and Go modules modes.
-
-[Go modules](https://golang.org/ref/mod) are used to manage dependencies in
-recent versions of Go. Modules replace the `GOPATH`-based approach to specifying
-which source files are used in a given build, and they are the default build
-mode in go1.16+. We highly recommend Go development in module mode. If you are
-working on existing projects, please consider migrating to modules.
-
-Unlike the traditional `GOPATH` mode, module mode does not require the workspace
-to be located under `GOPATH` nor to use a specific structure. A module is
-defined by a directory tree of Go source files with a `go.mod` file in the
-tree's root directory.
-
-Your project may involve one or more modules. If you are working with multiple
-modules or uncommon project layouts, you will need to configure your workspace
-by using [Workspace Folders]. See the
-[Supported workspace layouts documentation] for more information.
-
-## Pre-release version
-
-If you'd like to get early access to new features and bug fixes, you can use the
-pre-release extension. Following the vscode's [convention](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#prerelease-extensions),
-we use the minor version of the extension version number to distinguish stable
-and pre-release versions (`0.ODD_NUMBER.patch` for pre-release, `0.EVEN_NUMBER.patch`
-for stable release).
-
-To install the pre-release version, use the drop-down list
-to select "Install Pre-Release Version", or if already installed the Go extension,
-use the "Switch to Pre-Release Version" option in the Visual Studio Code
-extension management page. For more details about this mechanism, see the
-[Visual Studio Code's documentation](https://code.visualstudio.com/updates/v1_63#_pre-release-extensions).
-
-## Telemetry
-
-VS Code Go extension relies on the [Go Telemetry](https://go.dev/doc/telemetry) to
-learn insights about the performance and stability of the extension and the
-language server (`gopls`).
-**Go Telemetry data uploading is disabled by default** and can be enabled
-with the following command:
-
-```
-go run golang.org/x/telemetry/cmd/gotelemetry@latest on
+```json
+{
+  "gon.enabled": true,
+  "gon.compilerPath": "/path/to/toolchain/gon/bin/gon",
+  "gon.languageServerPath": "/path/to/toolchain/gon/bin/gonpls"
+}
 ```
 
-After telemetry is enabled, the language server will upload metrics and stack
-traces to [telemetry.go.dev](https://telemetry.go.dev). You can inspect what
-data is collected and can be uploaded by running:
+For ordinary Go projects, `gon.goPath` selects the Go command and
+`gon.goLanguageServerPath` selects official gopls (default `gopls`, also searched
+in GOBIN/GOPATH/bin). `gon.goServerSettings` configures that server separately.
 
+Paths support `~` and `${workspaceFolder}`. Bare names use `PATH`. The tools must
+be installed in the same environment as the extension host (local, SSH, WSL, or
+container). Workspace trust is required to start tools or execute code.
+
+## Run button
+
+The **▶ Run Go/Gon File** button appears in the editor title for saved `.go` files
+other than `_test.go`. It saves the active file and runs:
+
+- `gon run <file>` in a Gon project;
+- `go run <file>` in an ordinary Go project.
+
+Output and compiler errors appear in a VS Code task terminal. Stop the running
+task from the terminal/task controls. A file must contain a runnable `main`
+package; library files are rejected by the compiler. For multi-file programs,
+set `"gon.run.mode": "package"` to run the containing package instead.
+`gon.run.args` is an array of program arguments. Paths and arguments are passed
+directly to the process, so spaces and shell metacharacters are preserved.
+`gon.goPath` selects the official Go executable for ordinary Go projects.
+
+## Language features
+
+Diagnostics, completion, hover, definitions, references, rename, formatting,
+semantic tokens, and import actions are provided by the selected server through
+the standard VS Code language client: official gopls for Go, gonpls for Gon. `gon.serverSettings` passes gopls-style settings to
+that server. Use **Gon: Restart Language Server** after changing or rebuilding
+Gon tools. The **Gon** output channel contains both servers' logs. If formatting
+was explicitly assigned to the now-disabled Go extension, use **Format Document
+With... → Configure Default Formatter → Gon** for Go files. Gon files already
+default to this extension.
+
+Leaving the official extension active is not required. If it is already active,
+Gon defers ordinary Go language features to it rather than start duplicate Go
+providers. Disable it and reload to use this extension alone.
+
+## Debugger
+
+Install Delve (`dlv`) alongside the tools, or set `gon.debuggerPath`. Press F5
+and choose **Gon / Go**, or use this `.vscode/launch.json` entry:
+
+```json
+{
+  "type": "gon",
+  "name": "Launch package",
+  "request": "launch",
+  "mode": "debug",
+  "program": "${workspaceFolder}"
+}
 ```
-go run golang.org/x/telemetry/cmd/gotelemetry@latest view
+
+The selected project's compiler builds the binary. Delve consumes its normal
+Go debug information directly; no source translation is involved. Breakpoints,
+stepping, stack frames, variables and Watch expressions use native Delve DAP.
+Program output appears in the Debug Console. `mode: "test"` debugs package tests;
+`mode: "exec"` launches an existing binary. Local attach accepts `processId`;
+`port` and `host` connect to an existing DAP server. Existing `type: "go"`
+configurations are supported when this extension owns Go debugging.
+
+Each session gets its own compiler environment. Go/Gon coexistence does not
+require changing your shell PATH or global GOROOT. Delve remains the shared
+`dlv` executable and is not replaced. `stdinFrom`, `stdoutTo`, and `stderrTo`
+can redirect streams; use `outputMode: "local"` with output redirection.
+
+## Test explorer
+
+Open VS Code's **Testing** view and refresh. The explorer discovers actual
+`Test`, `Example`, `Fuzz` and `Benchmark` entries using the selected compiler.
+Use its Run and Debug profiles for a project, package, test, or discovered
+subtest. Runs show output, passed/failed/skipped results and elapsed time;
+Cancel terminates the test process group. Source changes trigger a refresh.
+Fuzz entries run their seed corpus; continuous fuzzing is available through
+`gon test -fuzz` in a terminal.
+
+- `gon.test.packagePatterns`: package patterns to discover (default `./...`).
+- `gon.test.buildFlags`: build flags, e.g. `["-tags=integration"]`, shared by
+  discovery, running and debugging.
+- `gon.test.args`: extra arguments for normal test runs.
+
+Discovery compiles tests, so build failures appear on the project node. For a
+workspace containing separate modules, open each module as a workspace folder
+or configure appropriate package patterns. Test compilation can execute build
+tools; workspace trust is required.
+
+The extension retains upstream source, but does not include every upstream
+integration or an automatic tool installer. Gon syntax support in analysis is
+provided by the patched gonpls SSA and Staticcheck IR builders.
+
+## Build and test
+
+Requires Node.js 22+ and npm, plus the built Gon tools for integration tests.
+
+```sh
+cd extension
+npm ci
+npm run compile
+npm run package
+code --install-extension ../gon-0.1.0.vsix
 ```
 
-If we get enough adoption, this data can significantly advance the pace of
-the Go extension development, and help us meet a higher standard
-of reliability. For example:
+The VSIX is local; `gon-lang` is the extension namespace, not a claim that this
+extension has been published to the marketplace.
 
-- Even with [semi-automated crash
-  reports](https://github.com/golang/vscode-go/issues?q=is%3Aissue+is%3Aopen+label%3AautomatedReport)
-  in VS Code, we've seen several crashers go unreported for weeks or months.
-- Even with [a suite of
-  benchmarks](https://perf.golang.org/dashboard/?benchmark=all&repository=tools&branch=release-branch.go1.20),
-  some performance regressions don't show up in our benchmark environment (such
-  as the [completion bug](https://go.dev/issue/62665) mentioned below!).
-- Even with [lots of great
-  ideas](https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3Agopls+label%3Afeaturerequest)
-  for how to improve gopls, we have limited resources. Telemetry can help us
-  identify which new features are most important, and which existing features
-  aren't being used or aren't working well.
+```sh
+GON_ROOT=/path/to/gon-toolchain \
+GO_ERROR_HANDLING_BASELINE=/path/to/official/go \
+npm test
+```
 
-These are just a few ways that telemetry can improve gopls. The [telemetry blog
-post series](https://research.swtch.com/telemetry-uses) contains many more.
+The runner uses an isolated VS Code profile and temporary projects. Set
+`VSCODE_EXECUTABLE` to an installed VS Code executable to avoid downloading a
+test version. Set `GON_TEST_GOPLS` to an existing official gopls executable if
+it is outside PATH/GOPATH. `GON_TEST_DLV` selects an installed Delve for tests. The tests disable all other third-party extensions
+and verify Go/Gon coexistence in one window, actual gonpls
+hover and error diagnostics, official gopls for legacy Go, a second Gon server,
+command routing across all three projects, the play-button contribution, execution of
+paired legacy/modern programs, saving edits, paths containing spaces and shell
+metacharacters, and enabling/disabling Gon per project. They also run real Delve sessions,
+check breakpoints/locals/evaluation/stepping, discover tests, run and debug
+them, report failures/skips/subtests, and cancel a running test.
 
-Go telemetry is designed to be transparent and privacy-preserving. Learn more at
-[https://go.dev/doc/telemetry](https://go.dev/doc/telemetry).
+## Upstream and license
 
-## Support Policy
+Forked from [golang/vscode-go](https://github.com/golang/vscode-go), commit
+`f30f369e48e3772be1b5622647664f05f2ddc076`. The `upstream` Git remote points to that
+repository; no Gon remote or published repository is configured yet.
+Upstream attribution and MIT license are preserved. The original documentation
+is retained in `docs/UPSTREAM-README.md` and the Git history.
 
-The Go extension is maintained by engineers on the
-[Go tools team](https://github.com/orgs/golang/teams/tools-team/members),
-who actively monitor the [VS Code Go](https://github.com/golang/vscode-go/issues)
-and the [Go](https://github.com/golang/go/issues?q=is%3Aissue+is%3Aopen+label%3Agopls)
-issue trackers.
-
-We support only the latest stable and pre-release versions of the extension.
-
-### Supported Go and tools
-
-The Go extension follows the [Go Release Policy](https://go.dev/doc/devel/release.html#policy),
-meaning that it _officially_ supports the two most recent major Go releases.
-The Go team maintains _best-effort_ support for the last three major Go versions.
-
-The Go extension relies on [tools](https://github.com/golang/vscode-go/wiki/tools)
-like `gopls` and `dlv` for its core functionalities and they have their own release
-policy and schedule. We test only against the latest versions of these tools.
-
-In case you need to work with an older version of Go, please check
-the [Compatibility] page and manually install the compatible version of
-the extension and tools.
-
-## Contributing
-
-We welcome your contributions and thank you for working to improve the Go
-development experience in VS Code. If you would like to help work on the VS Code
-Go extension, see our
-[contribution guide](https://github.com/golang/vscode-go/wiki/contributing) to
-learn how to build and run the VS Code Go extension locally and contribute to
-the project.
-
-## Code of Conduct
-
-This project follows the
-[Go Community Code of Conduct](https://golang.org/conduct). If you encounter a
-conduct-related issue, please mail conduct@golang.org.
-
-## License
-
-[MIT](LICENSE)
-
-[Stack Overflow]: https://stackoverflow.com/questions/tagged/go+visual-studio-code
-[`gopls`]: https://golang.org/s/gopls
-[`go`]: https://golang.org/cmd/go
-[Managing extensions in VS Code]: https://code.visualstudio.com/docs/editor/extension-gallery
-[VS Code Go extension]: https://marketplace.visualstudio.com/items?itemName=golang.go
-[Go installation guide]: https://golang.org/doc/install
-["Getting started with VS Code Go"]: https://youtu.be/1MXIGYrMk80
-[IntelliSense]: https://github.com/golang/vscode-go/wiki/features#intellisense
-[Code navigation]: https://github.com/golang/vscode-go/wiki/features#code-navigation
-[Code editing]: https://github.com/golang/vscode-go/wiki/features#code-editing
-[Compatibility]: https://github.com/golang/vscode-go/wiki/compatibility
-[diagnostics]: https://github.com/golang/vscode-go/wiki/features#diagnostics
-[testing]: https://github.com/golang/vscode-go/wiki/features#run-and-test-in-the-editor
-[debugging]: https://github.com/golang/vscode-go/wiki/debugging#features
-[full feature breakdown]: https://github.com/golang/vscode-go/wiki/features
-[workspace documentation]: https://github.com/golang/tools/blob/master/gopls/doc/workspace.md
-[`Go: Install/Update Tools` command]: https://github.com/golang/vscode-go/wiki/commands#go-installupdate-tools
-[Supported workspace layouts documentation]: https://github.com/golang/tools/blob/master/gopls/doc/workspace.md
-[Workspace Folders]: https://code.visualstudio.com/docs/editor/multi-root-workspaces
+Go syntax highlighting uses VS Code's built-in `source.go` grammar. The Gon
+language configuration is derived from the built-in Go extension in VS Code
+1.139.1 (Microsoft, MIT license); additional Gon tokens and semantic highlighting
+come from this extension and gonpls.

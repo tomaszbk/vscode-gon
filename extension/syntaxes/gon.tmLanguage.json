@@ -1,0 +1,12 @@
+{
+  "scopeName": "source.gon",
+  "patterns": [
+    {
+      "name": "keyword.control.error.gon",
+      "match": "\\bor\\b(?=\\s+[A-Za-z_]\\w*\\s*\\{)"
+    },
+    {
+      "include": "source.go"
+    }
+  ]
+}

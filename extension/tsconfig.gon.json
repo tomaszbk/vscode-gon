@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "out",
+    "types": [
+      "node",
+      "vscode"
+    ]
+  },
+  "include": [
+    "src/gon/**/*.ts",
+    "gon-tests/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
