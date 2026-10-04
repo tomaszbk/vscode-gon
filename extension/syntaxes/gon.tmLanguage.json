@@ -2,11 +2,68 @@
   "scopeName": "source.gon",
   "patterns": [
     {
-      "name": "keyword.control.error.gon",
-      "match": "\\bor\\b(?=\\s+[A-Za-z_]\\w*\\s*\\{)"
-    },
-    {
       "include": "source.go"
     }
-  ]
+  ],
+  "injections": {
+    "L:source.gon -comment -string": {
+      "patterns": [
+        {
+          "include": "#gon-tokens"
+        }
+      ]
+    }
+  },
+  "repository": {
+    "gon-tokens": {
+      "patterns": [
+        {
+          "comment": "enum is contextual; ordinary identifiers and aliases named enum retain Go highlighting.",
+          "match": "(\\btype)\\s+([[:alpha:]_][[:alnum:]_]*)(?:\\s*(\\[[^\\r\\n]*\\]))?\\s+(enum)(?=[ \\t]*\\{)",
+          "captures": {
+            "1": {
+              "name": "keyword.type.go"
+            },
+            "2": {
+              "name": "entity.name.type.gon"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "source.go"
+                }
+              ]
+            },
+            "4": {
+              "name": "keyword.declaration.enum.gon"
+            }
+          }
+        },
+        {
+          "name": "keyword.control.error.gon",
+          "match": "\\bor\\b(?=\\s+[[:alpha:]_][[:alnum:]_]*\\s*\\{)"
+        },
+        {
+          "name": "keyword.operator.arrow.gon",
+          "match": "=>"
+        },
+        {
+          "comment": "Canonical contextual construction in expression positions; qualified variant patterns and ordinary selectors retain Go highlighting.",
+          "match": "(^|(?<=[=(:,{\\[;])|\\breturn\\b)\\s*(\\.)(Ok|Err)\\b",
+          "captures": {
+            "2": {
+              "name": "punctuation.accessor.gon"
+            },
+            "3": {
+              "name": "entity.name.function.variant.gon"
+            }
+          }
+        },
+        {
+          "name": "keyword.operator.null-safety.gon",
+          "match": "\\?\\?=?|\\?\\.|\\?"
+        }
+      ]
+    }
+  }
 }

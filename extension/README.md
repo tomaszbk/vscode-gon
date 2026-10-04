@@ -1,55 +1,53 @@
 # Gon for Visual Studio Code
 
-Go and Gon language support, derived from the official Go extension. This fork
-has its own extension ID, `gon-lang.gon`. It can be your single extension for both
-languages: disable the official `golang.go` extension in the workspace.
+Gon language support, derived from the official Go extension. This fork has
+its own extension ID, `gon-lang.gon`. Enable it in Gon workspaces and disable
+the official `golang.go` extension there. For ordinary Go workspaces, disable
+Gon and enable the official Go extension.
 
 The Gon compiler and `gonpls` language server are maintained in the Gon toolchain
-repository. This repository contains only the editor extension. It does not
-install or replace Go, gopls, Gon, or gonpls automatically.
+repository. This extension does not install or replace tools automatically.
 
 ## Use
 
-1. Install the Gon toolchain and expose its `gon` and `gonpls` commands.
+1. Install the Gon toolchain with `python3 misc/gon/install.py` from its checkout.
+   The installer exposes `gon` and `gonpls` and updates your public PATH when
+   needed. Open a new terminal and restart VS Code after installation.
 2. Install this extension's VSIX (see Build below), disable **Go** (`golang.go`)
-   in the workspace, and reload VS Code.
-3. Open a project and run **Gon: Enable for This Project**, or add
-   `"gon.enabled": true` to that folder's `.vscode/settings.json`.
-4. Open a `.go` file. The editor language becomes **Gon** and its language server
-   is `gonpls`. Ordinary Go projects remain **Go**; this same extension uses
-   official `gopls` for them and `go` for execution.
+   **for this workspace**, and reload VS Code.
+3. Open a `.go` file. The editor language becomes **Gon**, with `gonpls` providing
+   language services and `gon` used for execution, tests and debugging.
 
-You can keep Go and Gon folders open in the same multi-root window. Each Gon
-folder has its own LSP client and compiler settings. Standard Go projects also
-get their own official gopls client when the Go extension is disabled. This extension does not
-register `.go` as a global Gon file association. **Gon: Disable for This Project**
-restores the Go language mode.
+No `go.mod` change, `gon.enabled` flag, project-enabling command or settings file
+is required. The extension searches PATH and `~/.local/bin`, including when a GUI
+editor inherited an older PATH. The default server follows the selected compiler's
+capabilities metadata. Terminal and CI commands still need to use `gon` explicitly;
+the extension does not change the terminal's environment.
 
-Configuration for explicit tool paths:
+Optional overrides for a particular toolchain:
 
 ```json
 {
-  "gon.enabled": true,
   "gon.compilerPath": "/path/to/toolchain/gon/bin/gon",
   "gon.languageServerPath": "/path/to/toolchain/gon/bin/gonpls"
 }
 ```
 
-For ordinary Go projects, `gon.goPath` selects the Go command and
-`gon.goLanguageServerPath` selects official gopls (default `gopls`, also searched
-in GOBIN/GOPATH/bin). `gon.goServerSettings` configures that server separately.
+Overriding only the compiler also selects its corresponding gonpls. Paths support
+`~`, `${workspaceFolder}` and project-relative paths. Tools must be installed in
+the same environment as the extension host (local, SSH, WSL or container).
+Workspace trust is required to start tools or execute code.
 
-Paths support `~` and `${workspaceFolder}`. Bare names use `PATH`. The tools must
-be installed in the same environment as the extension host (local, SSH, WSL, or
-container). Workspace trust is required to start tools or execute code.
+Each folder has a separate language client and may override the tool paths.
+Extension enablement applies to the whole workspace, including every folder;
+use separate windows when you need Go and Gon extensions for different projects.
+This extension does not register `.go` as a global Gon file association. Old
+`gon.enabled` settings are ignored and can be removed.
 
 ## Run button
 
-The **▶ Run Go/Gon File** button appears in the editor title for saved `.go` files
-other than `_test.go`. It saves the active file and runs:
-
-- `gon run <file>` in a Gon project;
-- `go run <file>` in an ordinary Go project.
+The **▶ Run Gon File** button appears in the editor title for saved `.go` files
+other than `_test.go`. It saves the active file and runs `gon run <file>`.
 
 Output and compiler errors appear in a VS Code task terminal. Stop the running
 task from the terminal/task controls. A file must contain a runnable `main`
@@ -57,36 +55,33 @@ package; library files are rejected by the compiler. For multi-file programs,
 set `"gon.run.mode": "package"` to run the containing package instead.
 `gon.run.args` is an array of program arguments. Paths and arguments are passed
 directly to the process, so spaces and shell metacharacters are preserved.
-`gon.goPath` selects the official Go executable for ordinary Go projects.
 
 ## Language features
 
 Diagnostics, completion, hover, definitions, references, rename, formatting,
-semantic tokens, and import actions are provided by the selected server through
-the standard VS Code language client: official gopls for Go, gonpls for Gon. `gon.serverSettings` passes gopls-style settings to
+semantic tokens, and import actions are provided by gonpls through the standard
+VS Code language client. `gon.serverSettings` passes gopls-style settings to
 that server. Use **Gon: Restart Language Server** after changing or rebuilding
-Gon tools. The **Gon** output channel contains both servers' logs. If formatting
+Gon tools. The **Gon** output channel contains language-server logs. If formatting
 was explicitly assigned to the now-disabled Go extension, use **Format Document
 With... → Configure Default Formatter → Gon** for Go files. Gon files already
 default to this extension.
 
-**Gon: Check Project (saved files)** runs `gon check ./...` for the selected Gon
-project as a task and reports its diagnostics, including files that are not
-open, in the Problems view. **Gon: Show Tooling Capabilities** prints what the
-project's toolchain reports through `gon capabilities --json`. The extension
-probes this before offering tooling features and, when the toolchain is too old,
-explains that it must be updated instead of falling back to other tools. When
-`gon.languageServerPath` is not set, it starts the language server that the
-selected compiler reports, so each project uses its own toolchain.
-
-Leaving the official extension active is not required. If it is already active,
-Gon defers ordinary Go language features to it rather than start duplicate Go
-providers. Disable it and reload to use this extension alone.
+The Gon grammar highlights contextual `enum` declarations, lambda/match `=>`,
+and `?`, `?.`, `??`, `??=` throughout Go expressions. Comments and strings keep
+their Go highlighting. `enum`, `Option`, `Result` and `or` remain ordinary
+identifiers outside their applicable syntax; semantic details come from gonpls.
+Match arms also have indentation support. The grammar recognizes native optional
+spelling such as `int?`, `(*User)?` and presence patterns such as `case value?`.
+Contextual `.Ok` and `.Err` use the expected Result type. Native optionals use
+direct payloads and nil; retired optional constructor snippets are removed.
+The `gonoption` and `gonmaybe` snippets provide a declaration and exhaustive
+optional match. `gonok` and `gonerr` construct Result alternatives.
 
 ## Debugger
 
 Install Delve (`dlv`) alongside the tools, or set `gon.debuggerPath`. Press F5
-and choose **Gon / Go**, or use this `.vscode/launch.json` entry:
+and choose **Gon**, or use this `.vscode/launch.json` entry:
 
 ```json
 {
@@ -106,8 +101,8 @@ Program output appears in the Debug Console. `mode: "test"` debugs package tests
 `port` and `host` connect to an existing DAP server. Existing `type: "go"`
 configurations are supported when this extension owns Go debugging.
 
-Each session gets its own compiler environment. Go/Gon coexistence does not
-require changing your shell PATH or global GOROOT. Delve remains the shared
+Each session gets its own Gon compiler environment without changing the
+terminal's Go selection or global GOROOT. Delve remains the shared
 `dlv` executable and is not replaced. `stdinFrom`, `stdoutTo`, and `stderrTo`
 can redirect streams; use `outputMode: "local"` with output redirection.
 
@@ -156,20 +151,29 @@ GO_ERROR_HANDLING_BASELINE=/path/to/official/go \
 npm test
 ```
 
+Set `GON_TEST_SETUP_ONLY=1` with those variables to exercise automatic tool
+selection, LSP, run/check, debugging and the test explorer without the separate
+core-language fixtures. Those checks execute legacy Go on both Gon and the
+unmodified baseline, plus modern error handling on Gon. This mode does not
+validate enum/optional/named-call editor fixtures.
+
+Set `GON_TEST_FEATURES_ONLY=1` with those variables for the focused
+enum/match/native optional/Result/named-call extension-host checks and executable
+legacy/modern/baseline pair. With `VSCODE_EXECUTABLE` set, `npm run test:syntax`
+tests highlighting with that editor's actual TextMate tokenizer and built-in
+Go grammar, plus match indentation and snippet packaging, without starting
+the extension host. The normal `npm test` also includes these feature checks.
+
 The runner uses an isolated VS Code profile and temporary projects. Set
 `VSCODE_EXECUTABLE` to an installed VS Code executable to avoid downloading a
-test version. Set `GON_TEST_GOPLS` to an existing official gopls executable if
-it is outside PATH/GOPATH. `GON_TEST_DLV` selects an installed Delve for tests. The tests disable all other third-party extensions
-and verify Go/Gon coexistence in one window, actual gonpls
-hover and error diagnostics, official gopls for legacy Go, a second Gon server,
-command routing across all three projects, the play-button contribution, execution of
-paired legacy/modern programs, saving edits, paths containing spaces and shell
-metacharacters, and enabling/disabling Gon per project. They also run real Delve sessions,
-check breakpoints/locals/evaluation/stepping, discover tests, run and debug
-them, report failures/skips/subtests, and cancel a running test. The tooling
-checks probe capabilities, reject an older toolchain and ordinary Go projects,
-and run Check Project on clean and broken code, asserting exit status and the
-reported problem.
+test version. `GON_TEST_DLV` selects an installed Delve for tests. The tests disable
+other third-party extensions and verify automatic Gon selection with no project
+settings, public PATH discovery, actual gonpls hover and error diagnostics,
+independent clients and command routing, an optional compiler override, the play
+button, paired legacy/modern/baseline execution, saving edits, and paths containing
+spaces and shell metacharacters. They also run real Delve sessions, check
+breakpoints/locals/evaluation/stepping, discover tests, run and debug them,
+report failures/skips/subtests, and cancel a running test.
 
 ## Upstream and license
 

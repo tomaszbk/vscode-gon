@@ -12,7 +12,7 @@ export function registerDebug(context: vscode.ExtensionContext, output: vscode.L
       const c = { ...configuration };
       if (!c.type) {
         c.type = 'gon';
-        c.name = 'Launch Go/Gon package';
+        c.name = 'Launch Gon package';
         c.request = 'launch';
         c.mode = 'debug';
       }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
+import { accessSync, constants, statSync } from 'fs';
 import { execFile, spawn, ChildProcess } from 'child_process';
 import { promisify } from 'util';
 
@@ -22,10 +23,33 @@ export function tool(setting: string, fallback: string, uri: vscode.Uri): string
   if (!path.isAbsolute(value) && /[/\\]/.test(value)) {
     value = path.resolve(folder?.uri.fsPath ?? path.dirname(uri.fsPath), value);
   }
+  // GUI editors can inherit an older PATH. Also find the installer's default
+  // public directory without exposing the toolchain's private go executable.
+  if (value === fallback && (fallback === 'gon' || fallback === 'gonpls')) {
+    return findPublicTool(fallback, process.env.PATH ?? '', os.homedir()) ?? value;
+  }
   return value;
 }
+// Keep discovery independent of editor configuration so all consumers use
+// the same PATH-first policy, with a fallback for GUI editors' older environments.
+export function findPublicTool(name: string, searchPath: string, home: string): string | undefined {
+  const suffix = process.platform === 'win32' ? '.exe' : '';
+  const directories = [...searchPath.split(path.delimiter).filter(Boolean), path.join(home, '.local', 'bin')];
+  for (const directory of directories) {
+    const candidate = path.join(directory, name + suffix);
+    try {
+      if (statSync(candidate).isFile()) {
+        accessSync(candidate, constants.X_OK);
+        return candidate;
+      }
+    } catch {
+      /* Try the next public directory. */
+    }
+  }
+  return undefined;
+}
 export function compiler(uri: vscode.Uri) {
-  return config(uri).get<boolean>('enabled', false) ? tool('compilerPath', 'gon', uri) : tool('goPath', 'go', uri);
+  return tool('compilerPath', 'gon', uri);
 }
 export async function environment(uri: vscode.Uri, cwd: string) {
   if (!vscode.workspace.isTrusted) {

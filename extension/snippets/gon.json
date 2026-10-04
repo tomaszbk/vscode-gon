@@ -1,0 +1,77 @@
+{
+  "Gon enum": {
+    "prefix": "gonen",
+    "body": [
+      "type ${1:Message} enum {",
+      "\tdefault ${2:Empty}",
+      "\t${3:Value}(${4:string})",
+      "}"
+    ],
+    "description": "Closed enum with an explicit default and a positional payload"
+  },
+  "Gon exhaustive match": {
+    "prefix": "gonmatch",
+    "body": [
+      "switch ${1:value} {",
+      "case ${2:Message}.${3:Empty} => {",
+      "\t$0",
+      "}",
+      "case ${2:Message}.${4:Value}(${5:payload}) => {",
+      "\t_ = ${5:payload}",
+      "}",
+      "}"
+    ],
+    "description": "Statement match with qualified variants and arm-local bindings"
+  },
+  "Gon Result Ok": {
+    "prefix": "gonok",
+    "body": ".Ok(${1:value})$0",
+    "description": "Construct Ok using the expected canonical Result type"
+  },
+  "Gon Result Err": {
+    "prefix": "gonerr",
+    "body": ".Err(${1:err})$0",
+    "description": "Construct Err using the expected canonical Result type"
+  },
+  "Gon named call": {
+    "prefix": "goncall",
+    "body": "${1:function}(${2:parameter}: ${3:value})$0",
+    "description": "Call using a parameter name from the visible static signature"
+  },
+  "Gon conditional expression": {
+    "prefix": "gonif",
+    "body": "if ${1:condition} { ${2:yes} } else { ${3:no} }$0",
+    "description": "Lazy conditional value expression"
+  },
+  "Gon typed lambda": {
+    "prefix": "gonlambda",
+    "body": "var ${1:function} func(${2:int}) ${3:int} = (${4:value}) => ${5:value}$0",
+    "description": "Lambda with an explicit function target type"
+  },
+  "Gon qualified Result Ok": {
+    "prefix": "gonokfull",
+    "body": "Result[${1:int}, ${2:error}].Ok(${3:value})$0",
+    "description": "Construct a successful Result"
+  },
+  "Gon qualified Result Err": {
+    "prefix": "gonerrfull",
+    "body": "Result[${1:int}, ${2:error}].Err(${3:err})$0",
+    "description": "Construct a failed Result, including an explicit nil error payload"
+  },
+  "Gon optional declaration": {
+    "prefix": "gonoption",
+    "body": "var ${1:value} ${2:int}? = ${3:nil}$0",
+    "description": "Declare a native optional using T?; nil is absence"
+  },
+  "Gon optional match": {
+    "prefix": "gonmaybe",
+    "body": [
+      "switch ${1:value} {",
+      "case nil => ${2:fallback}",
+      "case ${3:present}? => ${4:present}",
+      "$0",
+      "}"
+    ],
+    "description": "Exhaustive native optional match with a presence binding"
+  }
+}

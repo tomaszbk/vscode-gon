@@ -5,6 +5,8 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { execFileSync } from 'child_process';
 import { probeCapabilities, ToolingProbe } from '../src/gon/agentTooling';
+import { checkCoreFeatures } from './coreFeatures';
+import { findPublicTool } from '../src/gon/toolchain';
 
 async function until<T>(action: () => Promise<T | undefined>, message: string): Promise<T> {
   const deadline = Date.now() + 45000;
@@ -38,15 +40,42 @@ function taskDone(type = 'gon-run'): { promise: Promise<number | undefined>; dis
 }
 
 async function integration() {
+  // macOS VS Code resolves the login-shell environment before starting the
+  // host, which can replace the runner's PATH. Restore the isolated public
+  // installation before opening documents or activating compiler services.
+  process.env.PATH = process.env.GON_TEST_PUBLIC_BIN + path.delimiter + (process.env.PATH ?? '');
   const temporary = process.env.GON_TEST_ROOT!;
   const modern = path.join(temporary, 'gon project & spaces');
   const legacy = path.join(temporary, 'go project');
   const modernUri = vscode.Uri.file(path.join(modern, 'main.go'));
   const legacyUri = vscode.Uri.file(path.join(legacy, 'main.go'));
+  // Discovery also works when a GUI editor has not inherited the new PATH.
+  const home = path.join(temporary, 'discovery-home');
+  const fallback = path.join(home, '.local', 'bin');
+  await fs.mkdir(fallback, { recursive: true });
+  await fs.symlink(path.join(process.env.GON_ROOT!, 'gon/bin/gon'), path.join(fallback, 'gon'));
+  assert.equal(findPublicTool('gon', '', home), path.join(fallback, 'gon'));
+  assert.equal(findPublicTool('gon', process.env.GON_TEST_PUBLIC_BIN!, home), path.join(process.env.GON_TEST_PUBLIC_BIN!, 'gon'));
+  assert.equal(findPublicTool('gonpls', '', home), undefined, 'missing tools are not silently replaced');
+  const directoryOnly = path.join(temporary, 'directory-only');
+  await fs.mkdir(path.join(directoryOnly, 'gon'), { recursive: true });
+  assert.equal(findPublicTool('gon', directoryOnly, home), path.join(fallback, 'gon'), 'directories are not executables');
   const extension = vscode.extensions.getExtension('gon-lang.gon');
   assert.ok(extension, 'Gon extension must be registered independently');
   await extension.activate();
   console.log('GON TEST: activated');
+  for (const folder of [modern, legacy]) {
+    assert.ok(!(await fs.stat(path.join(folder, '.vscode')).catch(() => undefined)), 'no project settings needed');
+  }
+  assert.ok(!('gon.enabled' in extension.packageJSON.contributes.configuration.properties));
+  assert.ok(!extension.packageJSON.contributes.commands.some((c: { command: string }) => c.command === 'gon.enableWorkspace' || c.command === 'gon.disableWorkspace'));
+
+  if (process.env.GON_TEST_SETUP_ONLY !== '1') {
+    await checkCoreFeatures(extension, temporary);
+  }
+  if (process.env.GON_TEST_FEATURES_ONLY === '1') {
+    return;
+  }
   const manifest = extension.packageJSON;
   assert.equal(manifest.contributes.languages[0].extensions, undefined, 'must not claim all .go files globally');
   assert.ok(
@@ -66,7 +95,10 @@ async function integration() {
   modernDocument = await vscode.workspace.openTextDocument(modernUri);
   const legacyDocument = await vscode.workspace.openTextDocument(legacyUri);
   await vscode.window.showTextDocument(legacyDocument);
-  assert.equal(legacyDocument.languageId, 'go', 'official Go project must keep Go language');
+  await until(async () => {
+    const doc = await vscode.workspace.openTextDocument(legacyUri);
+    return doc.languageId === 'gon' ? true : undefined;
+  }, 'existing Go project uses Gon without configuration');
   {
     const pos = legacyDocument.positionAt(legacyDocument.getText().indexOf('problem)'));
     await until(async () => {
@@ -80,10 +112,10 @@ async function integration() {
       )
         ? true
         : undefined;
-    }, 'official gopls hover in legacy project');
-    console.log('GON TEST: Gon extension provides official gopls for Go');
+    }, 'gonpls hover in unconfigured legacy project');
+    console.log('GON TEST: Gon extension uses Gon for existing Go code without settings');
   }
-  console.log('GON TEST: language isolation');
+  console.log('GON TEST: automatic Gon selection');
   const hoverPosition = modernDocument.positionAt(modernDocument.getText().indexOf('problem)'));
   console.log(
     'GON TEST: hover target ' +
@@ -122,7 +154,7 @@ async function integration() {
   for (const [uri, prefix] of [
     [modernUri, 'gonpls'],
     [siblingUri, 'gonpls'],
-    [legacyUri, 'gopls']
+    [legacyUri, 'gonpls']
   ] as const) {
     const imports = await vscode.commands.executeCommand(`${prefix}.list_imports`, { URI: uri.toString() });
     assert.ok(JSON.stringify(imports).includes('fmt'), `server command routes to ${uri}`);
@@ -166,6 +198,13 @@ async function integration() {
   );
   console.log('GON TEST: diagnostics');
 
+  // Only program arguments and Delve location are customized for later tests.
+  // Tool selection and LSP have already worked without any project settings.
+  for (const folder of vscode.workspace.workspaceFolders ?? []) {
+    const settings = vscode.workspace.getConfiguration('gon', folder.uri);
+    await settings.update('run.args', [folder.uri.fsPath], vscode.ConfigurationTarget.WorkspaceFolder);
+    await settings.update('debuggerPath', process.env.GON_TEST_DLV!, vscode.ConfigurationTarget.WorkspaceFolder);
+  }
   const testing = (extension.exports as { testing: GonTesting }).testing;
   await testing.refresh();
   console.log('GON TEST: discovered tests');
@@ -191,7 +230,7 @@ async function integration() {
       new vscode.TestRunRequest(['TestOK', 'TestFailure', 'TestSkip'].map((n) => testItem(folder, n))),
       token.token
     );
-    assert.ok(result.passed.includes('TestOK'));
+    assert.ok(result.passed.includes('TestOK'), JSON.stringify(result));
     assert.ok(result.passed.includes('TestOK/nested'));
     assert.deepEqual(result.failed, ['TestFailure']);
     assert.deepEqual(result.skipped, ['TestSkip']);
@@ -299,10 +338,10 @@ async function integration() {
   }
 
   // The actual registered play command must save, run, and preserve arguments
-  // containing spaces and shell metacharacters, for both toolchains.
+  // containing spaces and shell metacharacters, for legacy and modern code.
   for (const [uri, folder, command] of [
     [modernUri, modern, 'gon'],
-    [legacyUri, legacy, 'go']
+    [legacyUri, legacy, 'gon']
   ] as const) {
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri));
     const done = taskDone();
@@ -334,8 +373,6 @@ async function integration() {
     // A toolchain without the tooling commands is reported instead of used.
     const old = await probeCapabilities(process.env.GO_ERROR_HANDLING_BASELINE!, modern);
     assert.ok(!old.available && old.reason.includes('Update the selected Gon toolchain'), JSON.stringify(old));
-    // Projects that did not opt into Gon are not checked with Gon.
-    assert.equal(await vscode.commands.executeCommand('gon.checkProject', legacyUri), undefined);
     const brokenUri = vscode.Uri.file(path.join(modern, 'broken.go'));
     for (const [expected, broken] of [
       [0, false],
@@ -371,25 +408,15 @@ async function integration() {
     await fs.rm(brokenUri.fsPath);
     console.log('GON TEST: agent tooling capabilities and Check Project');
   }
+  const baselineOutput = execFileSync(process.env.GO_ERROR_HANDLING_BASELINE!, ['run', legacyUri.fsPath, legacy], {
+    cwd: legacy, encoding: 'utf8'
+  });
+  assert.equal(baselineOutput, '42 <nil> 0 wrapped: failure\n', 'legacy baseline and Gon retain equal behavior');
   assert.ok(
     execFileSync(process.env.GO_ERROR_HANDLING_BASELINE!, ['version'], { encoding: 'utf8' }).startsWith('go version')
   );
-  assert.equal(vscode.workspace.getConfiguration('gon', legacyUri).get('enabled'), false);
-  await vscode.window.showTextDocument(modernDocument);
-  await vscode.commands.executeCommand('gon.disableWorkspace');
-  await until(
-    async () =>
-      vscode.workspace.textDocuments.find((d) => d.uri.toString() === modernUri.toString() && d.languageId === 'go'),
-    'disable restores Go'
-  );
-  await vscode.commands.executeCommand('gon.enableWorkspace');
-  await until(
-    async () =>
-      vscode.workspace.textDocuments.find((d) => d.uri.toString() === modernUri.toString() && d.languageId === 'gon'),
-    'enable restores Gon'
-  );
   console.log(
-    'PASS: VS Code Go/Gon isolation, LSP, run, debugger breakpoints/locals/step, test discovery/run/debug/fail/skip/subtests/cancel'
+    'PASS: zero-config Gon selection and tool discovery, per-folder overrides, LSP, legacy/modern/baseline execution, run, debugger, test explorer'
   );
 }
 
@@ -399,7 +426,7 @@ export async function run() {
     await Promise.race([
       integration(),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Integration suite exceeded 120 seconds')), 300000);
+        timer = setTimeout(() => reject(new Error('Integration suite exceeded 300 seconds')), 300000);
       })
     ]);
   } finally {

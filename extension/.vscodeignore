@@ -7,5 +7,6 @@
 !languages/gon.language-configuration.json
 !syntaxes/gon.tmLanguage.json
 !snippets/go.json
+!snippets/gon.json
 !media/go-logo-blue.png
 !media/gon_logo.png

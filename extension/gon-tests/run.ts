@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { runTests } from '@vscode/test-electron';
+import { modernFeatures, legacyFeatures } from './coreFeatures';
 
 async function main() {
   // The Codex/VS Code terminal may inherit Electron's CLI-only mode.
@@ -48,13 +49,16 @@ func main() {
       [legacy, false],
       [sibling, true]
     ] as const) {
-      await fs.mkdir(path.join(folder, '.vscode'), { recursive: true });
+      await fs.mkdir(folder, { recursive: true });
       const content = enabled
         ? source
         : source
             .replace('value := read(fail) or problem {', 'value, problem := read(fail)\n if problem != nil {')
             .replace('next := read(false)!', 'next, err := read(false)\n if err != nil { return 0, err }');
       await fs.writeFile(path.join(folder, 'main.go'), content);
+      if (process.env.GON_TEST_SETUP_ONLY !== '1') {
+        await fs.writeFile(path.join(folder, 'core_features.go'), enabled ? modernFeatures : legacyFeatures);
+      }
       await fs.writeFile(
         path.join(folder, 'main_test.go'),
         `package main
@@ -66,24 +70,22 @@ func TestSlow(t *testing.T) {time.Sleep(30*time.Second)}
 `
       );
       await fs.writeFile(path.join(folder, 'go.mod'), 'module example.com/run\n\ngo 1.26\n');
-      await fs.writeFile(
-        path.join(folder, '.vscode', 'settings.json'),
-        JSON.stringify({
-          'gon.enabled': enabled,
-          'gon.compilerPath': path.join(gonRoot, 'gon/bin/gon'),
-          'gon.languageServerPath': path.join(gonRoot, 'gon/bin/gonpls'),
-          'gon.goPath': baseline,
-          'gon.goLanguageServerPath': process.env.GON_TEST_GOPLS ?? 'gopls',
-          'gon.run.args': [folder],
-          'gon.debuggerPath': process.env.GON_TEST_DLV ?? path.join(os.homedir(), 'go/bin/dlv'),
-          'go.alternateTools': { go: baseline, gopls: process.env.GON_TEST_GOPLS ?? 'gopls' },
-          'go.toolsManagement.autoUpdate': false,
-          'go.toolsManagement.checkForUpdates': 'off',
-          'go.terminal.activateEnvironment': false
-        })
-      );
+      if (folder === sibling) {
+        await fs.mkdir(path.join(folder, '.vscode'));
+        // An explicit compiler override remains supported. Its server is
+        // discovered from capabilities without a languageServerPath setting.
+        await fs.writeFile(path.join(folder, '.vscode', 'settings.json'), JSON.stringify({
+          'gon.compilerPath': path.join(gonRoot, 'gon/bin/gon')
+        }));
+      }
     }
-    const workspace = path.join(temporary, 'coexist.code-workspace');
+    const publicBin = path.join(temporary, 'public bin');
+    await fs.mkdir(publicBin);
+    for (const name of ['gon', 'gonpls']) {
+      await fs.symlink(path.join(gonRoot, 'gon/bin', name), path.join(publicBin, name));
+    }
+    const toolPath = publicBin + path.delimiter + (process.env.PATH ?? '');
+    const workspace = path.join(temporary, 'gon.code-workspace');
     await fs.writeFile(workspace, JSON.stringify({ folders: [{ path: modern }, { path: legacy }, { path: sibling }] }));
     await runTests({
       vscodeExecutablePath: process.env.VSCODE_EXECUTABLE,
@@ -98,10 +100,19 @@ func TestSlow(t *testing.T) {time.Sleep(30*time.Second)}
         '--user-data-dir=' + path.join(temporary, 'profile'),
         '--extensions-dir=' + path.join(temporary, 'extensions')
       ],
-      extensionTestsEnv: { GON_TEST_ROOT: temporary, GON_ROOT: gonRoot, GO_ERROR_HANDLING_BASELINE: baseline }
+      extensionTestsEnv: {
+        GON_TEST_ROOT: temporary,
+        GON_ROOT: gonRoot,
+        GO_ERROR_HANDLING_BASELINE: baseline,
+        GON_TEST_FEATURES_ONLY: process.env.GON_TEST_FEATURES_ONLY ?? '',
+        GON_TEST_SETUP_ONLY: process.env.GON_TEST_SETUP_ONLY ?? '',
+        GON_TEST_DLV: process.env.GON_TEST_DLV ?? path.join(os.homedir(), 'go/bin/dlv'),
+        GON_TEST_PUBLIC_BIN: publicBin,
+        PATH: toolPath
+      }
     });
   } catch (error) {
-    await fs.cp(path.join(temporary, 'profile/logs'), '/tmp/vscode-gon-last-failure-logs', { recursive: true });
+    await fs.cp(path.join(temporary, 'profile/logs'), '/tmp/vscode-gon-last-failure-logs', { recursive: true }).catch(() => {});
     throw error;
   } finally {
     await fs.rm(temporary, { recursive: true, force: true });

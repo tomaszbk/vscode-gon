@@ -4,7 +4,7 @@
   "icon": "media/gon_logo.png",
   "version": "0.1.0",
   "publisher": "gon-lang",
-  "description": "Go and Gon language support in one extension, with per-project toolchains and a Run File button.",
+  "description": "Gon language support, with automatic tool discovery and a Run File button.",
   "author": {
     "name": "Gon contributors"
   },
@@ -37,6 +37,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "npm run typecheck && esbuild src/gon/extension.ts --bundle --outfile=dist/gonMain.js --external:vscode --format=cjs --platform=node",
     "typecheck": "tsc -p tsconfig.gon.json --noEmit",
+    "test:syntax": "node gon-tests/syntax.cjs",
     "test": "npm run compile && tsc -p tsconfig.gon.json && node out/gon-tests/run.js",
     "package": "vsce package --no-dependencies --allow-missing-repository -o ../gon-0.1.0.vsix"
   },
@@ -76,24 +77,20 @@
       {
         "language": "gon",
         "path": "./snippets/go.json"
+      },
+      {
+        "language": "gon",
+        "path": "./snippets/gon.json"
       }
     ],
     "commands": [
-      {
-        "command": "gon.enableWorkspace",
-        "title": "Gon: Enable for This Project"
-      },
-      {
-        "command": "gon.disableWorkspace",
-        "title": "Gon: Disable for This Project"
-      },
       {
         "command": "gon.restartLanguageServer",
         "title": "Gon: Restart Language Server"
       },
       {
         "command": "gon.runFile",
-        "title": "Run Go/Gon File",
+        "title": "Run Gon File",
         "category": "Gon",
         "icon": "$(play)",
         "enablement": "isWorkspaceTrusted && resourceScheme == file && resourceExtname == .go"
@@ -140,31 +137,18 @@
     "configuration": {
       "title": "Gon",
       "properties": {
-        "gon.enabled": {
-          "type": "boolean",
-          "default": false,
-          "scope": "resource",
-          "description": "Use Gon for .go files in this project. Does not change other projects."
-        },
         "gon.compilerPath": {
           "type": "string",
           "default": "gon",
           "scope": "resource",
-          "description": "Gon executable path. Supports ~ and ${workspaceFolder}.",
+          "description": "Optional Gon executable override. Automatically searches PATH and ~/.local/bin. Supports ~ and ${workspaceFolder}.",
           "restricted": true
         },
         "gon.languageServerPath": {
           "type": "string",
           "default": "gonpls",
           "scope": "resource",
-          "description": "Gon language server path. Supports ~ and ${workspaceFolder}.",
-          "restricted": true
-        },
-        "gon.goPath": {
-          "type": "string",
-          "default": "go",
-          "scope": "resource",
-          "description": "Official Go executable used by Run File in projects that have not enabled Gon.",
+          "description": "Optional Gon language server override. By default uses the server from the selected Gon installation. Supports ~ and ${workspaceFolder}.",
           "restricted": true
         },
         "gon.serverSettings": {
@@ -193,21 +177,6 @@
           "default": [],
           "scope": "resource",
           "description": "Arguments passed to the running program."
-        },
-        "gon.goLanguageServerPath": {
-          "type": "string",
-          "default": "gopls",
-          "scope": "resource",
-          "description": "Official gopls executable for ordinary Go projects. If unset, also searches GOBIN/GOPATH/bin.",
-          "restricted": true
-        },
-        "gon.goServerSettings": {
-          "type": "object",
-          "default": {
-            "semanticTokens": true
-          },
-          "scope": "resource",
-          "description": "Settings for official gopls in ordinary Go projects."
         },
         "gon.debuggerPath": {
           "type": "string",
@@ -260,7 +229,7 @@
     "debuggers": [
       {
         "type": "gon",
-        "label": "Gon / Go",
+        "label": "Gon",
         "languages": [
           "gon",
           "go"
@@ -448,7 +417,7 @@
         ],
         "configurationSnippets": [
           {
-            "label": "Gon / Go: Debug tests",
+            "label": "Gon: Debug tests",
             "body": {
               "type": "gon",
               "name": "Debug tests",

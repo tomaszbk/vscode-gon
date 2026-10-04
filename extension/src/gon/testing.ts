@@ -12,7 +12,7 @@ const pattern = (s: string) =>
     .join('/');
 
 export class GonTesting implements vscode.Disposable {
-  readonly controller = vscode.tests.createTestController('gon.tests', 'Go / Gon');
+  readonly controller = vscode.tests.createTestController('gon.tests', 'Gon');
   private entries = new WeakMap<vscode.TestItem, Entry>();
   private queue: Promise<void> = Promise.resolve();
   private disposed = false;
@@ -27,13 +27,13 @@ export class GonTesting implements vscode.Disposable {
     this.controller.resolveHandler = () => this.refresh();
     this.controller.refreshHandler = (token) => this.refresh(token);
     this.controller.createRunProfile(
-      'Run Go/Gon Tests',
+      'Run Gon Tests',
       vscode.TestRunProfileKind.Run,
       (r, t) => this.run(r, t).then(() => {}),
       true
     );
     this.controller.createRunProfile(
-      'Debug Go/Gon Tests',
+      'Debug Gon Tests',
       vscode.TestRunProfileKind.Debug,
       (r, t) => this.run(r, t, true).then(() => {}),
       true
