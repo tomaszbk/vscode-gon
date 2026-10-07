@@ -5,7 +5,7 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 
 export const modernFeatures = `package main
-import "fmt"
+import ("errors"; "fmt")
 type Feature enum {
  default Empty
  Text(string)
@@ -20,27 +20,27 @@ func featureDescribe(value Feature) string {
  }
 }
 func featureCombine(first, second int) int { return first*10+second }
-func featureResult(value int) Result[int, string] {
- if value < 0 { return Result[int, string].Err("negative") }
- return Result[int, string].Ok(value)
+func featureResult(value int) (int, error) {
+ if value < 0 { return 0, errors.New("negative") }
+ return value, nil
 }
-func featureTwice(value int) Result[int, string] {
+func featureTwice(value int) (int, error) {
  number := featureResult(value: value)!
- return Result[int, string].Ok(number*2)
+ return number*2, nil
 }
 func featureOption(value int?) int? {
  number := value?
  return number+1
 }
 func featureSummary() string {
- number := featureTwice(value: 4) or problem { return problem }
+ number := featureTwice(value: 4) or problem { return problem.Error() }
  var user FeatureUser?
  name := user?.Name ?? "guest"
  maybe := featureOption(4) ?? 0
  return fmt.Sprintf("%s %d %d %s %d", featureDescribe(Feature.Text("ready")), number, maybe, name, featureCombine(second: 2, first: 1))
 }
 func featureFailure() string {
- _ = featureResult(value: -1) or problem { return problem }
+ _ = featureResult(value: -1) or problem { return problem.Error() }
  return "unexpected"
 }
 func featureRecord() string { return featureDescribe(Feature.Count{Number: 7}) }
@@ -48,15 +48,15 @@ func featureSimplifiedOptional(value int) (number int?) {
  if value < 0 { return nil }
  return value
 }
-func featureSimplifiedResult(value int) (port Result[int?, string]) {
- if value < 0 { return .Err("negative") }
- if value == 0 { return .Ok(nil) }
- return .Ok(value)
+func featureSimplifiedResult(value int) (port int?, err error) {
+ if value < 0 { return nil, errors.New("negative") }
+ if value == 0 { return nil, nil }
+ return value, nil
 }
 func featureSimplifiedPresent(value *int) (*int)? { return value }
 func featureSimplifiedSummary() string {
  var absent int? = nil
- number := featureSimplifiedResult(value: 8) or problem { return problem }
+ number := featureSimplifiedResult(value: 8) or problem { return problem.Error() }
  var pointer *int
  explicit := featureSimplifiedPresent(value: pointer)
  present := switch explicit {
@@ -64,6 +64,27 @@ func featureSimplifiedSummary() string {
  case nil => false
  }
  return fmt.Sprintf("%d %d %t %d", absent ?? -1, number ?? 0, present, featureSimplifiedOptional(value: 9) ?? 0)
+}
+func featurePattern(input int?) string {
+ if input is matched? && matched > 0 { return $"present:\${matched:%02d}" }
+ return "absent"
+}
+func featureAlternatives(value Feature) string {
+ return switch value {
+ case Feature.Empty, Feature.Count{Number: _} => "group"
+ case Feature.Text(text) => text
+ }
+}
+func featureContext(value int) (int, error) {
+ return featureResult(value: value) or problem => fmt.Errorf("context:%w", problem), nil
+}
+func featureContextFailure() string {
+ _ = featureContext(value: -1) or problem { return problem.Error() }
+ return "unexpected"
+}
+func featureExtensions() string {
+ var present int? = 3
+ return $"\${featurePattern(present)} \${featureAlternatives(Feature.Count{Number: 9})} \${featureContextFailure()}"
 }
 `;
 
@@ -138,6 +159,27 @@ func featureSimplifiedSummary() string {
  if optional.some { optionalValue = optional.value }
  return fmt.Sprintf("%d %d %t %d", absentValue, numberValue, explicit.some, optionalValue)
 }
+func featurePattern(input FeatureOption) string {
+ if input.some && input.value > 0 { return fmt.Sprintf("present:%02d", input.value) }
+ return "absent"
+}
+func featureAlternatives(value Feature) string {
+ if value.tag == 0 || value.tag == 2 { return "group" }
+ return value.text
+}
+func featureContext(value int) (int, error) {
+ result, err := featureResult(value)
+ if err != nil { return 0, fmt.Errorf("context:%w", err) }
+ return result, nil
+}
+func featureContextFailure() string {
+ _, problem := featureContext(-1)
+ if problem != nil { return problem.Error() }
+ return "unexpected"
+}
+func featureExtensions() string {
+ return fmt.Sprintf("%s %s %s", featurePattern(FeatureOption{some:true, value:3}), featureAlternatives(Feature{tag:2,number:9}), featureContextFailure())
+}
 `;
 
 async function until<T>(action: () => Promise<T | undefined>, message: string): Promise<T> {
@@ -179,7 +221,7 @@ export async function checkCoreFeatures(extension: VSCode.Extension<unknown>, te
   assert.ok(document.lineAt(range.start.line).text.includes('func featureCombine'));
   const errors = vscode.languages.getDiagnostics(uri).filter((d) => d.severity === vscode.DiagnosticSeverity.Error);
   assert.deepEqual(errors.map((d) => d.message), [], 'implemented Gon features must have no editor errors: ' + JSON.stringify(errors.map((d) => ({message:d.message, line:d.range.start.line}))));
-  for (const name of ['Feature.Text(text)', 'Result[int, string]', 'int?']) {
+  for (const name of ['Feature.Text(text)', 'featureResult(value: value)', 'int?']) {
     const hovers = await until(async () => {
       const results = await vscode.commands.executeCommand<VSCode.Hover[]>(
         'vscode.executeHoverProvider', uri, document.positionAt(text.indexOf(name))
@@ -196,50 +238,44 @@ export async function checkCoreFeatures(extension: VSCode.Extension<unknown>, te
   for (const edit of [...(formatEdits ?? [])].sort((a, b) => document.offsetAt(b.range.start) - document.offsetAt(a.range.start))) {
     formatted = formatted.slice(0, document.offsetAt(edit.range.start)) + edit.newText + formatted.slice(document.offsetAt(edit.range.end));
   }
-  assert.ok(formatted.includes('(port Result[int?, string])') && formatted.includes('(*int)?'), 'formatting preserves optional type grouping and named results');
-  for (const spelling of ['.Ok(value)', '.Err("negative")', 'case _?', 'case nil']) {
+  assert.ok(formatted.includes('(port int?, err error)') && formatted.includes('(*int)?'), 'formatting preserves optional type grouping and named results');
+  for (const spelling of ['case _?', 'case nil', 'is matched?', 'or problem =>', '$"present:', 'case Feature.Empty, Feature.Count']) {
     assert.ok(formatted.includes(spelling), `formatting preserves ${spelling}`);
   }
-  const contextual = text.indexOf('return .Ok(value)') + 'return .'.length;
-  const constructorDefinitions = await until(async () => {
+  const binding = text.indexOf('is matched') + 'is '.length;
+  const bindingDefinitions = await until(async () => {
     const results = await vscode.commands.executeCommand<(VSCode.Location | VSCode.LocationLink)[]>(
-      'vscode.executeDefinitionProvider', uri, document.positionAt(contextual)
+      'vscode.executeDefinitionProvider', uri, document.positionAt(text.indexOf('${matched') + 2)
     );
     return results?.length ? results : undefined;
-  }, 'contextual constructor definition through extension client');
-  const constructorTarget = constructorDefinitions[0];
-  const constructorUri = 'targetUri' in constructorTarget ? constructorTarget.targetUri : constructorTarget.uri;
-  assert.ok(constructorUri.fsPath.endsWith(path.join('src', 'builtin', 'builtin.go')));
+  }, 'interpolated pattern binding definition');
+  const bindingTarget = bindingDefinitions[0];
+  const bindingRange = 'targetRange' in bindingTarget ? (bindingTarget.targetSelectionRange ?? bindingTarget.targetRange) : bindingTarget.range;
+  assert.equal(document.offsetAt(bindingRange.start), binding);
+  const rename = await vscode.commands.executeCommand<VSCode.WorkspaceEdit>(
+    'vscode.executeDocumentRenameProvider', uri, document.positionAt(binding), 'count'
+  );
+  assert.equal(rename?.get(uri)?.filter((edit) => edit.newText === 'count').length, 3, 'rename covers pattern declaration, guard and interpolated reference');
+  const completion = await until(async () => {
+    const result = await vscode.commands.executeCommand<VSCode.CompletionList>(
+      'vscode.executeCompletionItemProvider', uri, document.positionAt(text.indexOf('&& matched') + '&& mat'.length)
+    );
+    return result?.items.some((item) => (typeof item.label === 'string' ? item.label : item.label.label) === 'matched') ? result : undefined;
+  }, 'pattern binding completion in the later && operand');
+  assert.ok(completion.items.length);
   const signature = await until(async () => {
     const result = await vscode.commands.executeCommand<VSCode.SignatureHelp>(
-      'vscode.executeSignatureHelpProvider', uri, document.positionAt(contextual + 'Ok('.length)
+      'vscode.executeSignatureHelpProvider', uri, document.positionAt(text.indexOf('featureResult(value: value)') + 'featureResult('.length)
     );
     return result?.signatures.length ? result : undefined;
-  }, 'contextual constructor signature help through extension client');
-  assert.ok(signature.signatures[0].label.startsWith('.Ok(') && signature.signatures[0].label.includes('int?'), signature.signatures[0].label);
-  const editor = await vscode.window.showTextDocument(document);
-  for (const [old, replacement, marker, expected] of [
-    ['return .Ok(value)', 'return .O', 'return .O', 'Ok'],
-    ['return .Err("negative")', 'return .E', 'return .E', 'Err'],
-  ]) {
-    const source = text.replace(old, replacement);
-    await editor.edit((builder) => builder.replace(new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), source));
-    const result = await until(async () => {
-      const completion = await vscode.commands.executeCommand<VSCode.CompletionList>(
-        'vscode.executeCompletionItemProvider', uri, document.positionAt(source.indexOf(marker) + marker.length)
-      );
-      return completion?.items.some((item) => (typeof item.label === 'string' ? item.label : item.label.label) === expected) ? completion : undefined;
-    }, `${expected} contextual completion through extension client`);
-    assert.ok(result.items.length);
-    await editor.edit((builder) => builder.replace(new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), text));
-  }
-
+  }, 'named error-tuple call signature');
+  assert.ok(signature.signatures[0].label.includes('value int'), signature.signatures[0].label);
 
   const compiler = path.join(process.env.GON_ROOT!, 'gon/bin/gon');
   const outputs: string[] = [];
   for (const [name, source, commands] of [
     ['modern', modernFeatures, [compiler]],
-    ['legacy', legacyFeatures, [compiler, process.env.GO_ERROR_HANDLING_BASELINE!]]
+    ['legacy', legacyFeatures, [compiler, process.env.GON_BASELINE_GO!]]
   ] as const) {
     const executableFolder = path.join(temporary, `features-${name}`);
     await fs.mkdir(executableFolder);
@@ -247,12 +283,33 @@ export async function checkCoreFeatures(extension: VSCode.Extension<unknown>, te
     await fs.writeFile(path.join(executableFolder, 'features.go'), source);
     await fs.writeFile(path.join(executableFolder, 'main.go'), `package main
 import "fmt"
-func main(){fmt.Println(featureSummary());fmt.Println(featureRecord());fmt.Println(featureFailure());fmt.Println(featureSimplifiedSummary())}
+func main(){fmt.Println(featureSummary());fmt.Println(featureRecord());fmt.Println(featureFailure());fmt.Println(featureSimplifiedSummary());fmt.Println(featureExtensions())}
 `);
     for (const command of commands) {
       outputs.push(execFileSync(command, ['run', '.'], { cwd: executableFolder, encoding: 'utf8' }));
     }
   }
-  assert.deepEqual(outputs, Array(3).fill('ready 8 5 guest 12\n7\nnegative\n-1 8 true 9\n'));
-  console.log('PASS: extension-host enum/match/native optional/Result/named-argument and optional type/contextual constructor hover, definition, signatures, completion, formatting, legacy/modern/baseline execution');
+  assert.deepEqual(outputs, Array(3).fill('ready 8 5 guest 12\n7\nnegative\n-1 8 true 9\npresent:03 group context:negative\n'));
+  const configuration = vscode.workspace.getConfiguration('gon', uri);
+  const previous = configuration.inspect('serverSettings')?.workspaceFolderValue;
+  try {
+    for (const enabled of [false, true]) {
+      await configuration.update('serverSettings', { semanticTokens: true, nilaway: enabled }, vscode.ConfigurationTarget.WorkspaceFolder);
+      let finish!: (code: number | undefined) => void;
+      const done = new Promise<number | undefined>((resolve) => { finish = resolve; });
+      const listener = vscode.tasks.onDidEndTaskProcess((event) => {
+        if (event.execution.task.definition.type === 'gon-check') { finish(event.exitCode); }
+      });
+      try {
+        const execution = await vscode.commands.executeCommand<VSCode.TaskExecution>('gon.checkProject', uri);
+        assert.ok(execution);
+        const task = execution.task.execution as VSCode.ProcessExecution;
+        assert.deepEqual(task.args, ['check', './...', ...(enabled ? ['--nilaway'] : [])]);
+        assert.equal(await done, 0, 'editor-selected nil analysis preserves successful check status');
+      } finally { listener.dispose(); }
+    }
+  } finally {
+    await configuration.update('serverSettings', previous, vscode.ConfigurationTarget.WorkspaceFolder);
+  }
+  console.log('PASS: extension-host enum/match/native optional/error-tuple/named-argument, multi-pattern/is/error-context/interpolation, hover, definitions, rename, signatures, completion, formatting, legacy/modern/baseline execution');
 }

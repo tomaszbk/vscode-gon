@@ -70,7 +70,10 @@
       {
         "language": "gon",
         "scopeName": "source.gon",
-        "path": "./syntaxes/gon.tmLanguage.json"
+        "path": "./syntaxes/gon.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.inline.gon": "gon"
+        }
       }
     ],
     "snippets": [

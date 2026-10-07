@@ -9,6 +9,18 @@
     ],
     "description": "Closed enum with an explicit default and a positional payload"
   },
+  "Gon string enum": {
+    "prefix": "gonstringenum",
+    "body": [
+      "type ${1:Role} enum string {",
+      "\tdefault ${2:Unknown}(string)",
+      "\t${3:Teacher} = \"${4:teacher}\"",
+      "\t${5:Student} = \"${6:student}\"",
+      "\t$0",
+      "}"
+    ],
+    "description": "String enum with automatic parsing, String and text encoding methods"
+  },
   "Gon exhaustive match": {
     "prefix": "gonmatch",
     "body": [
@@ -22,16 +34,6 @@
       "}"
     ],
     "description": "Statement match with qualified variants and arm-local bindings"
-  },
-  "Gon Result Ok": {
-    "prefix": "gonok",
-    "body": ".Ok(${1:value})$0",
-    "description": "Construct Ok using the expected canonical Result type"
-  },
-  "Gon Result Err": {
-    "prefix": "gonerr",
-    "body": ".Err(${1:err})$0",
-    "description": "Construct Err using the expected canonical Result type"
   },
   "Gon named call": {
     "prefix": "goncall",
@@ -47,16 +49,6 @@
     "prefix": "gonlambda",
     "body": "var ${1:function} func(${2:int}) ${3:int} = (${4:value}) => ${5:value}$0",
     "description": "Lambda with an explicit function target type"
-  },
-  "Gon qualified Result Ok": {
-    "prefix": "gonokfull",
-    "body": "Result[${1:int}, ${2:error}].Ok(${3:value})$0",
-    "description": "Construct a successful Result"
-  },
-  "Gon qualified Result Err": {
-    "prefix": "gonerrfull",
-    "body": "Result[${1:int}, ${2:error}].Err(${3:err})$0",
-    "description": "Construct a failed Result, including an explicit nil error payload"
   },
   "Gon optional declaration": {
     "prefix": "gonoption",

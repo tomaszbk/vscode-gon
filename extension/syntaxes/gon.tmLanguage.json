@@ -18,8 +18,38 @@
     "gon-tokens": {
       "patterns": [
         {
+          "include": "#gon-interpolated-double"
+        },
+        {
+          "include": "#gon-interpolated-raw"
+        },
+        {
+          "comment": "Only pattern-test positions; declarations and selectors named is keep Go highlighting.",
+          "match": "(?<![[:alnum:]_.])((?!(?:var|const|type|func|package|import)\\b)[[:alpha:]_][[:alnum:]_]*(?:\\.[[:alpha:]_][[:alnum:]_]*)*)\\s+(is)\\b(?=\\s+(?:[[:alpha:]_]|\\())",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "include": "source.go"
+                }
+              ]
+            },
+            "2": {
+              "name": "keyword.control.pattern.gon"
+            }
+          }
+        },
+        {
+          "match": "(?<=[)\\]])\\s+(is)\\b(?=\\s+(?:[[:alpha:]_]|\\())",
+          "captures": {
+            "1": {
+              "name": "keyword.control.pattern.gon"
+            }
+          }
+        },
+        {
           "comment": "enum is contextual; ordinary identifiers and aliases named enum retain Go highlighting.",
-          "match": "(\\btype)\\s+([[:alpha:]_][[:alnum:]_]*)(?:\\s*(\\[[^\\r\\n]*\\]))?\\s+(enum)(?=[ \\t]*\\{)",
+          "match": "(\\btype)\\s+([[:alpha:]_][[:alnum:]_]*)(?:\\s*(\\[[^\\r\\n]*\\]))?\\s+(enum)(?:[ \\t]+(string))?(?=[ \\t]*\\{)",
           "captures": {
             "1": {
               "name": "keyword.type.go"
@@ -36,32 +66,197 @@
             },
             "4": {
               "name": "keyword.declaration.enum.gon"
+            },
+            "5": {
+              "name": "storage.type.string.go"
             }
           }
         },
         {
           "name": "keyword.control.error.gon",
-          "match": "\\bor\\b(?=\\s+[[:alpha:]_][[:alnum:]_]*\\s*\\{)"
+          "match": "\\bor\\b(?=\\s+[[:alpha:]_][[:alnum:]_]*\\s*(?:\\{|=>))"
         },
         {
           "name": "keyword.operator.arrow.gon",
           "match": "=>"
         },
         {
-          "comment": "Canonical contextual construction in expression positions; qualified variant patterns and ordinary selectors retain Go highlighting.",
-          "match": "(^|(?<=[=(:,{\\[;])|\\breturn\\b)\\s*(\\.)(Ok|Err)\\b",
-          "captures": {
-            "2": {
-              "name": "punctuation.accessor.gon"
-            },
-            "3": {
-              "name": "entity.name.function.variant.gon"
-            }
-          }
-        },
-        {
           "name": "keyword.operator.null-safety.gon",
           "match": "\\?\\?=?|\\?\\.|\\?"
+        }
+      ]
+    },
+    "gon-interpolated-double": {
+      "name": "string.quoted.interpolated.double.gon",
+      "begin": "(\\$)(\")",
+      "end": "\"",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.operator.interpolation.gon"
+        },
+        "2": {
+          "name": "punctuation.definition.string.begin.go"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.go"
+        }
+      },
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.go"
+        },
+        {
+          "include": "#gon-interpolation-expression"
+        }
+      ]
+    },
+    "gon-interpolated-raw": {
+      "name": "string.quoted.interpolated.raw.gon",
+      "begin": "(\\$)(`)",
+      "end": "`",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.operator.interpolation.gon"
+        },
+        "2": {
+          "name": "punctuation.definition.string.begin.go"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.go"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#gon-interpolation-expression"
+        }
+      ]
+    },
+    "gon-interpolation-expression": {
+      "name": "meta.interpolation.gon",
+      "contentName": "meta.embedded.inline.gon",
+      "begin": "\\$\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.operator.interpolation.gon"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "keyword.operator.interpolation.gon"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#gon-interpolation-format"
+        },
+        {
+          "comment": "Do not let Go keyed-field tokenization consume a top-level format colon.",
+          "match": "\\b[[:alpha:]_][[:alnum:]_]*(?=[ \\t]*:)",
+          "name": "variable.other.go"
+        },
+        {
+          "include": "#gon-interpolation-code"
+        }
+      ]
+    },
+    "gon-interpolation-format": {
+      "name": "string.interpolation.format.gon",
+      "begin": ":",
+      "end": "(?=\\})",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.separator.format.gon"
+        }
+      },
+      "patterns": [
+        {
+          "match": "%[-+ #0-9.\\[\\]]*[vTtbcdoOxXUeEfFgGspq]",
+          "name": "constant.other.placeholder.go"
+        }
+      ]
+    },
+    "gon-interpolation-code": {
+      "patterns": [
+        {
+          "include": "#gon-tokens"
+        },
+        {
+          "include": "#gon-interpolation-braces"
+        },
+        {
+          "include": "#gon-interpolation-parens"
+        },
+        {
+          "include": "#gon-interpolation-brackets"
+        },
+        {
+          "include": "source.go"
+        }
+      ]
+    },
+    "gon-interpolation-braces": {
+      "name": "meta.group.braces.gon",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.begin.bracket.curly.go"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.end.bracket.curly.go"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#gon-interpolation-code"
+        }
+      ]
+    },
+    "gon-interpolation-parens": {
+      "name": "meta.group.parens.gon",
+      "begin": "\\(",
+      "end": "\\)",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.begin.bracket.round.go"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.end.bracket.round.go"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#gon-interpolation-code"
+        }
+      ]
+    },
+    "gon-interpolation-brackets": {
+      "name": "meta.group.brackets.gon",
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.begin.bracket.square.go"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.end.bracket.square.go"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#gon-interpolation-code"
         }
       ]
     }

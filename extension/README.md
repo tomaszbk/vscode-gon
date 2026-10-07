@@ -67,16 +67,28 @@ was explicitly assigned to the now-disabled Go extension, use **Format Document
 With... → Configure Default Formatter → Gon** for Go files. Gon files already
 default to this extension.
 
-The Gon grammar highlights contextual `enum` declarations, lambda/match `=>`,
-and `?`, `?.`, `??`, `??=` throughout Go expressions. Comments and strings keep
-their Go highlighting. `enum`, `Option`, `Result` and `or` remain ordinary
-identifiers outside their applicable syntax; semantic details come from gonpls.
-Match arms also have indentation support. The grammar recognizes native optional
-spelling such as `int?`, `(*User)?` and presence patterns such as `case value?`.
-Contextual `.Ok` and `.Err` use the expected Result type. Native optionals use
-direct payloads and nil; retired optional constructor snippets are removed.
-The `gonoption` and `gonmaybe` snippets provide a declaration and exhaustive
-optional match. `gonok` and `gonerr` construct Result alternatives.
+The Gon grammar highlights contextual `enum` and `enum string` declarations,
+pattern tests with `is`, error handlers with `or`, lambda/match `=>`, and
+`?`, `?.`, `??`, `??=`. Quoted and raw interpolation keep literal text as
+strings and tokenize embedded expressions, nested literals and fmt verbs.
+`enum`, `is` and `or` keep ordinary identifier highlighting outside their
+syntax; gonpls supplies precise semantic tokens and binding scopes.
+Match arms also have indentation support. Native optionals use direct payloads
+and nil; `gonoption` and `gonmaybe` provide a declaration and exhaustive match.
+The eight Gon snippets include enums, string enums, optional values, matches,
+named calls, conditional expressions and lambdas.
+
+NilAway warnings are opt-in. Add this object to workspace settings:
+
+```json
+{
+  "gon.serverSettings": { "nilaway": true }
+}
+```
+
+**Gon: Check Project** inherits that setting and invokes `gon check --nilaway`
+when enabled. The language-server setting is passed through an open object;
+other gonpls options remain available.
 
 ## Debugger
 
@@ -147,7 +159,7 @@ extension has been published to the marketplace.
 
 ```sh
 GON_ROOT=/path/to/gon-toolchain \
-GO_ERROR_HANDLING_BASELINE=/path/to/official/go \
+GON_BASELINE_GO=/path/to/official/go \
 npm test
 ```
 
@@ -158,7 +170,7 @@ unmodified baseline, plus modern error handling on Gon. This mode does not
 validate enum/optional/named-call editor fixtures.
 
 Set `GON_TEST_FEATURES_ONLY=1` with those variables for the focused
-enum/match/native optional/Result/named-call extension-host checks and executable
+enum/match/native optional/error-tuple/named-call and new syntax extension-host checks and executable
 legacy/modern/baseline pair. With `VSCODE_EXECUTABLE` set, `npm run test:syntax`
 tests highlighting with that editor's actual TextMate tokenizer and built-in
 Go grammar, plus match indentation and snippet packaging, without starting

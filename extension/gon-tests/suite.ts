@@ -371,7 +371,7 @@ async function integration() {
     assert.ok(probe.result.capabilities.check && probe.result.capabilities.rename);
     assert.equal(probe.result.toolchain.languageServer, path.join(process.env.GON_ROOT!, 'gon', 'bin', 'gonpls'));
     // A toolchain without the tooling commands is reported instead of used.
-    const old = await probeCapabilities(process.env.GO_ERROR_HANDLING_BASELINE!, modern);
+    const old = await probeCapabilities(process.env.GON_BASELINE_GO!, modern);
     assert.ok(!old.available && old.reason.includes('Update the selected Gon toolchain'), JSON.stringify(old));
     const brokenUri = vscode.Uri.file(path.join(modern, 'broken.go'));
     for (const [expected, broken] of [
@@ -408,12 +408,12 @@ async function integration() {
     await fs.rm(brokenUri.fsPath);
     console.log('GON TEST: agent tooling capabilities and Check Project');
   }
-  const baselineOutput = execFileSync(process.env.GO_ERROR_HANDLING_BASELINE!, ['run', legacyUri.fsPath, legacy], {
+  const baselineOutput = execFileSync(process.env.GON_BASELINE_GO!, ['run', legacyUri.fsPath, legacy], {
     cwd: legacy, encoding: 'utf8'
   });
   assert.equal(baselineOutput, '42 <nil> 0 wrapped: failure\n', 'legacy baseline and Gon retain equal behavior');
   assert.ok(
-    execFileSync(process.env.GO_ERROR_HANDLING_BASELINE!, ['version'], { encoding: 'utf8' }).startsWith('go version')
+    execFileSync(process.env.GON_BASELINE_GO!, ['version'], { encoding: 'utf8' }).startsWith('go version')
   );
   console.log(
     'PASS: zero-config Gon selection and tool discovery, per-folder overrides, LSP, legacy/modern/baseline execution, run, debugger, test explorer'

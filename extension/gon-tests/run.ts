@@ -12,9 +12,9 @@ async function main() {
   if (!gonRoot) {
     throw new Error('Set GON_ROOT to the built Gon toolchain directory');
   }
-  const baseline = process.env.GO_ERROR_HANDLING_BASELINE;
+  const baseline = process.env.GON_BASELINE_GO;
   if (!baseline) {
-    throw new Error('Set GO_ERROR_HANDLING_BASELINE to official Go');
+    throw new Error('Set GON_BASELINE_GO to official Go');
   }
   const modern = path.join(temporary, 'gon project & spaces');
   const legacy = path.join(temporary, 'go project');
@@ -103,7 +103,7 @@ func TestSlow(t *testing.T) {time.Sleep(30*time.Second)}
       extensionTestsEnv: {
         GON_TEST_ROOT: temporary,
         GON_ROOT: gonRoot,
-        GO_ERROR_HANDLING_BASELINE: baseline,
+        GON_BASELINE_GO: baseline,
         GON_TEST_FEATURES_ONLY: process.env.GON_TEST_FEATURES_ONLY ?? '',
         GON_TEST_SETUP_ONLY: process.env.GON_TEST_SETUP_ONLY ?? '',
         GON_TEST_DLV: process.env.GON_TEST_DLV ?? path.join(os.homedir(), 'go/bin/dlv'),

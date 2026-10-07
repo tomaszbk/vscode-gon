@@ -129,7 +129,15 @@ export async function checkProject(uri?: vscode.Uri): Promise<vscode.TaskExecuti
     folder,
     'Gon: Check Project (saved files)',
     'Gon',
-    new vscode.ProcessExecution(tool('compilerPath', 'gon', folder.uri), ['check', './...'], { cwd: folder.uri.fsPath }),
+    new vscode.ProcessExecution(
+      tool('compilerPath', 'gon', folder.uri),
+      [
+        'check',
+        './...',
+        ...(config(folder.uri).get<Record<string, unknown>>('serverSettings', {}).nilaway === true ? ['--nilaway'] : [])
+      ],
+      { cwd: folder.uri.fsPath }
+    ),
     // Also reports files that are not open, alongside gonpls diagnostics.
     ['$gon-check']
   );

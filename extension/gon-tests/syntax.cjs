@@ -48,8 +48,22 @@ async function runSyntaxTests(appRoot, extensionRoot) {
     has('type Generic[T any] enum {', 'enum', 'keyword.declaration.enum.gon');
     scopes(' default Empty', 'Empty');
     scopes('}', '}');
+    const stringEnumStart = state;
+    has('type Role enum string {', 'enum', 'keyword.declaration.enum.gon');
+    state = stringEnumStart;
+    has('type Role enum string {', 'string', 'storage.type.string.go');
+    scopes(' default Unknown(string)', 'Unknown');
+    has(' Teacher = "teacher"', '"teacher"', 'string.quoted.double.go');
+    ordinary(' Student = "enum string { => ??"', '=>');
+    ordinary(' // Teacher = "teacher" enum string { =>', '=>');
+    scopes('}', '}');
+    has('type GenericRole[T any] enum string {', 'enum', 'keyword.declaration.enum.gon');
+    scopes(' default Unknown(string)', 'Unknown');
+    scopes('}', '}');
     ordinary('type Alias enum', 'enum');
+    ordinary('type Alias enum string', 'enum');
     ordinary('var enum = 3', 'enum');
+    ordinary('var string = "enum string"', 'enum');
     ordinary('var Option = 1', 'Option');
     ordinary('var Result = 1', 'Result');
     has('func feature() {', '{', 'punctuation.definition.begin.bracket.curly.go');
@@ -60,9 +74,9 @@ async function runSyntaxTests(appRoot, extensionRoot) {
     has(' var optional int?', '?', 'keyword.operator.null-safety.gon');
     has(' var pointer (*User)? = nil', '?', 'keyword.operator.null-safety.gon');
     has(' var nested (int?)?', '?', 'keyword.operator.null-safety.gon');
-    has(' var result Result[int?, error]', '?', 'keyword.operator.null-safety.gon');
-    has(' return .Ok(3)', 'Ok', 'entity.name.function.variant.gon');
-    has(' return .Err(problem)', 'Err', 'entity.name.function.variant.gon');
+    has(' var nested (int?)?', '?', 'keyword.operator.null-safety.gon');
+    ordinary(' return .Ok(3)', 'Ok');
+    ordinary(' return .Err(problem)', 'Err');
     assert.ok(!scopes(' value := Result[int, error].Ok(3)', 'Ok').includes('entity.name.function.variant.gon'));
     assert.ok(!scopes(' value := object.Some(3)', 'Some').includes('entity.name.function.variant.gon'));
     assert.ok(!scopes(' // .Ok(3) T?', 'Ok').includes('entity.name.function.variant.gon'));
@@ -71,6 +85,14 @@ async function runSyntaxTests(appRoot, extensionRoot) {
     has(' run := () => { callback?(1) }', '=>', 'keyword.operator.arrow.gon');
     has(' callback?(1)', '?', 'keyword.operator.null-safety.gon');
     has(' result := read() or problem { return }', 'or', 'keyword.control.error.gon');
+    has(' result := read() or problem => wrap(problem)', 'or', 'keyword.control.error.gon');
+    has(' if value is number? && number > 0 {', 'is', 'keyword.control.pattern.gon');
+    has(' if call() is true {', 'is', 'keyword.control.pattern.gon');
+    ordinary(' var is int', 'is');
+    ordinary(' var is    int', 'is');
+    ordinary(' type is int', 'is');
+    ordinary(' object.is(value)', 'is');
+    ordinary(' func is(value int) {}', 'is');
     ordinary(' or := 3', 'or');
     ordinary(' // type Message enum { => ?. ??= or problem {', '=>');
     ordinary(' s := "enum => ?. ??= or problem {"', '=>');
@@ -79,6 +101,26 @@ async function runSyntaxTests(appRoot, extensionRoot) {
     ordinary('enum => ?. ??= or problem {', '=>');
     ordinary('`', '`');
     scopes('}', '}');
+
+    state = textmate.INITIAL;
+    has(' text := $"before ${f("quoted")}:${value:%.2f} after"', 'quoted', 'string.quoted.double.go');
+    has(' text := $"${map[string]int{"key": 2}["key"]}"', 'key', 'string.quoted.double.go');
+    has(' text := $"${call(name: value)}"', 'value', 'meta.embedded.inline.gon');
+    has(' text := $"${slice[1:3]}"', 'slice', 'meta.embedded.inline.gon');
+    has(' text := $"${if true { "yes" } else { "no" }}"', 'yes', 'string.quoted.double.go');
+    has(' text := $"${$"nested ${value}"}"', 'value', 'meta.embedded.inline.gon');
+    has(' text := $"${value /* keep: } */:%04d}"', 'keep', 'comment.block.go');
+    has(' text := $"${value:%04d}"', '%04d', 'constant.other.placeholder.go');
+    const escaped = scopes(' text := $"\\${literal}"', 'literal');
+    assert.ok(!escaped.includes('meta.embedded.inline.gon'), 'escaped dollar stays literal');
+    has(' text := $`raw', 'raw', 'string.quoted.interpolated.raw.gon');
+    has(' ${map[string]int{"key": 2}["key"]}', 'key', 'string.quoted.double.go');
+    has(' ${value // keep', 'keep', 'comment.line.double-slash.go');
+    has(' } literal`', 'literal', 'string.quoted.interpolated.raw.gon');
+    ordinary(' // $"${value}" is or err =>', 'is');
+    ordinary(' text := "$ ${value} is or err =>"', 'is');
+    ordinary(' text := `$ ${value} is or err =>`', 'is');
+    has(' var after = 1', 'after', 'variable.other.assignment.go');
     scopes('switch message {', '{');
     has('case Message.Text(text) => text', '=>', 'keyword.operator.arrow.gon');
     has('case value? => value', '?', 'keyword.operator.null-safety.gon');
@@ -93,23 +135,27 @@ async function runSyntaxTests(appRoot, extensionRoot) {
     assert.ok(manifest.contributes.snippets.some((s) => s.language === 'gon' && s.path === './snippets/gon.json'));
     const packageRules = fs.readFileSync(path.join(extensionRoot, '.vscodeignore'), 'utf8');
     assert.ok(packageRules.includes('!snippets/gon.json'), 'VSIX includes Gon snippets');
-    assert.equal(Object.keys(snippets).length, 11);
-    assert.equal(snippets['Gon Result Ok'].body, '.Ok(${1:value})$0');
-    assert.equal(snippets['Gon Result Err'].body, '.Err(${1:err})$0');
-    assert.ok(snippets['Gon qualified Result Ok'].body.startsWith('Result['));
+    assert.equal(Object.keys(snippets).length, 8);
+    assert.equal(snippets['Gon string enum'].prefix, 'gonstringenum');
+    assert.ok(snippets['Gon string enum'].body[0].endsWith('enum string {'));
+    assert.ok(snippets['Gon string enum'].body[1].includes('Unknown}(string)'));
+    assert.ok(snippets['Gon string enum'].body.some((line) => line.includes('= "${4:teacher}"')));
+    assert.ok(!Object.entries(snippets).some(([name, snippet]) => /Result|\.Ok\(|\.Err\(/.test(name + JSON.stringify(snippet.body))), 'retired Result snippets are absent');
+    assert.equal(manifest.contributes.configuration.properties['gon.serverSettings'].additionalProperties, undefined, 'server settings allow nilaway and other gonpls keys');
+    assert.equal(manifest.contributes.grammars[0].embeddedLanguages['meta.embedded.inline.gon'], 'gon');
     assert.ok(snippets['Gon optional declaration'].body.includes('${2:int}?'));
     assert.ok(snippets['Gon exhaustive match'].body.every((line) => !line.includes('case .')), 'match patterns stay qualified');
     const configuration = JSON.parse(fs.readFileSync(path.join(extensionRoot, 'languages/gon.language-configuration.json'), 'utf8'));
     const increase = new RegExp(configuration.indentationRules.increaseIndentPattern);
     const decrease = new RegExp(configuration.indentationRules.decreaseIndentPattern);
-    for (const line of ['case Feature.Text(text) =>', 'default =>', 'case ordinary:', 'type Feature enum {']) {
+    for (const line of ['case Feature.Text(text) =>', 'default =>', 'case ordinary:', 'type Feature enum {', 'type Role enum string {']) {
       assert.ok(increase.test(line), `indent after ${line}`);
     }
     assert.ok(!increase.test('case Feature.Text(text) => text'), 'value arm does not indent the following arm');
     for (const line of ['case Feature.Text(text) => text', 'default => "fallback"', 'case ordinary:']) {
       assert.ok(decrease.test(line), `align ${line}`);
     }
-    console.log('PASS: actual VS Code TextMate tokenizer, contextual enum, nested operators, optional types, contextual construction, comment/string isolation, qualified match indentation, snippet packaging');
+    console.log('PASS: actual VS Code tokenizer, enum/string enum, optional types, is/or context, nested quoted/raw interpolation and formats, identifier compatibility, comment/string isolation, match indentation, 8 snippets');
   } finally {
     registry.dispose();
   }
