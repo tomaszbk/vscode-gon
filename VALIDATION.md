@@ -95,4 +95,16 @@ npm run package
 
 The resulting `gon-0.1.0.vsix` is distributed with Gon 2.27.0 on the public
 Gon repository. Its bundled client, grammar, snippets, license and documentation
-are checked in the archive; Marketplace publication is not required to install it.
+are checked in the archive.
+
+On 2026-10-11 the same package was published as
+[`gon-lang.gon` 0.1.0 on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gon-lang.gon).
+The public gallery reports the version as validated and its VSIX SHA256 as
+`64b3a6f4da8662ce0b3334082127bc67fc7433c54ac887c6a8d7ab791b58f7f0`,
+matching the tested package from source commit `7d1dfc4bf511c525d5adc9e054a84eb1023e721f`.
+Installation with `code --install-extension gon-lang.gon@0.1.0 --force` passed
+on macOS arm64 using separate user-data and extension directories. The installed
+client, grammar, snippets, language configuration, icons, license, README and
+changelog match the original VSIX bytes. The public listing exposes its Install
+button. The subsequent repository documentation edits do not change the
+published package or repeat the earlier integration-test run.

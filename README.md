@@ -13,9 +13,10 @@ repository. This extension does not install or replace tools automatically.
 1. Install the Gon toolchain with `python3 misc/gon/install.py` from its checkout.
    The installer exposes `gon` and `gonpls` and updates your public PATH when
    needed. Open a new terminal and restart VS Code after installation.
-2. Download `gon-0.1.0.vsix` from [Gon releases](https://github.com/tomaszbk/gon/releases)
-   and install it with **Extensions: Install from VSIX...** or
-   `code --install-extension gon-0.1.0.vsix`. Disable **Go** (`golang.go`)
+2. Install [Gon from the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gon-lang.gon)
+   or run `code --install-extension gon-lang.gon`. For manual installation,
+   download `gon-0.1.0.vsix` from [Gon releases](https://github.com/tomaszbk/gon/releases)
+   and use **Extensions: Install from VSIX...**. Disable **Go** (`golang.go`)
    **for this workspace**, and reload VS Code.
 3. Open a `.go` file. The editor language becomes **Gon**, with `gonpls` providing
    language services and `gon` used for execution, tests and debugging.
@@ -156,8 +157,9 @@ npm run package
 code --install-extension ../gon-0.1.0.vsix
 ```
 
-The VSIX is distributed with [Gon releases](https://github.com/tomaszbk/gon/releases).
-`gon-lang` is the extension namespace; installation uses the downloaded VSIX.
+The extension is published as `gon-lang.gon` on the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gon-lang.gon).
+The same VSIX is distributed with [Gon releases](https://github.com/tomaszbk/gon/releases).
 
 ```sh
 GON_ROOT=/path/to/gon-toolchain \
