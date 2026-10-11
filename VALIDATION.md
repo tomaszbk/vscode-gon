@@ -65,3 +65,34 @@ automatic tool discovery, per-folder overrides, LSP, file execution, debugger
 breakpoints/stack/locals/evaluation/stepping, and the test explorer for both
 Gon and legacy Go projects. The runner used temporary projects and an isolated
 VS Code profile.
+
+## Gon 2.27.0 distribution and client lifecycle — 2026-10-11
+
+The normal full `npm test` passed with the native Gon toolchain, unmodified
+Go 1.27.1 and the installed VS Code executable, without setup/feature filters.
+It executed the tokenizer, real LSP services and configuration changes, paired
+legacy/modern/baseline programs, automatic discovery, Run File, debugger and
+test explorer. A new post-run log check confirmed no language-client startup
+or workspace/didChangeConfiguration failure in the isolated VS Code profile.
+
+Configuration is passed through initialization and workspace/configuration;
+Gon serializes restarts when tool paths or server settings change. The redundant
+generic didChangeConfiguration feature is no longer registered, preventing it
+from automatically starting a client while Gon is stopping that client.
+The full integration run exercises NilAway setting changes and subsequent LSP
+requests. The test runner now treats hidden output-channel lifecycle errors
+as failures even when its feature assertions succeed.
+
+Run from `extension/`:
+
+```sh
+GON_ROOT=/Users/tzbk/Documents/gon \
+GON_BASELINE_GO=/opt/homebrew/bin/go \
+VSCODE_EXECUTABLE="/Applications/Visual Studio Code.app/Contents/MacOS/Code" \
+GON_TEST_DLV=/Users/tzbk/go/bin/dlv npm test
+npm run package
+```
+
+The resulting `gon-0.1.0.vsix` is distributed with Gon 2.27.0 on the public
+Gon repository. Its bundled client, grammar, snippets, license and documentation
+are checked in the archive; Marketplace publication is not required to install it.

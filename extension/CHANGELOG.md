@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.1.0
+## 0.1.0 — 2026-10-11
+
+- Distribute the Gon extension as a VSIX alongside Gon 2.27.0.
+- Serialize configuration restarts without automatic LSP notifications reviving stopping clients.
+- Document public downloads, toolchain installation and issue reporting.
+- Support the current Gon 2.27 syntax, semantic services, debugger and test explorer.
+
 
 - Independent Gon extension identity and per-folder language server.
 - Go/Gon coexistence without globally claiming `.go`.

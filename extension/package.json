@@ -641,5 +641,9 @@
         "language": "go"
       }
     ]
+  },
+  "homepage": "https://github.com/tomaszbk/gon#documentation",
+  "bugs": {
+    "url": "https://github.com/tomaszbk/gon/issues"
   }
 }

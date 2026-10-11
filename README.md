@@ -13,7 +13,9 @@ repository. This extension does not install or replace tools automatically.
 1. Install the Gon toolchain with `python3 misc/gon/install.py` from its checkout.
    The installer exposes `gon` and `gonpls` and updates your public PATH when
    needed. Open a new terminal and restart VS Code after installation.
-2. Install this extension's VSIX (see Build below), disable **Go** (`golang.go`)
+2. Download `gon-0.1.0.vsix` from [Gon releases](https://github.com/tomaszbk/gon/releases)
+   and install it with **Extensions: Install from VSIX...** or
+   `code --install-extension gon-0.1.0.vsix`. Disable **Go** (`golang.go`)
    **for this workspace**, and reload VS Code.
 3. Open a `.go` file. The editor language becomes **Gon**, with `gonpls` providing
    language services and `gon` used for execution, tests and debugging.
@@ -154,8 +156,8 @@ npm run package
 code --install-extension ../gon-0.1.0.vsix
 ```
 
-The VSIX is local; `gon-lang` is the extension namespace, not a claim that this
-extension has been published to the marketplace.
+The VSIX is distributed with [Gon releases](https://github.com/tomaszbk/gon/releases).
+`gon-lang` is the extension namespace; installation uses the downloaded VSIX.
 
 ```sh
 GON_ROOT=/path/to/gon-toolchain \
@@ -191,7 +193,8 @@ report failures/skips/subtests, and cancel a running test.
 
 Forked from [golang/vscode-go](https://github.com/golang/vscode-go), commit
 `f30f369e48e3772be1b5622647664f05f2ddc076`. The `upstream` Git remote points to that
-repository; no Gon remote or published repository is configured yet.
+repository. The maintained Gon source has a separate origin repository; public
+VSIX downloads are distributed from the Gon toolchain's releases.
 Upstream attribution and MIT license are preserved. The original documentation
 is retained in `docs/UPSTREAM-README.md` and the Git history.
 
@@ -200,4 +203,4 @@ language configuration is derived from the built-in Go extension in VS Code
 1.139.1 (Microsoft, MIT license); additional Gon tokens and semantic highlighting
 come from this extension and gonpls.
 
-Source repository: [tomaszbk/vscode-gon](https://github.com/tomaszbk/vscode-gon).
+Downloads, documentation and issue reports: [Gon](https://github.com/tomaszbk/gon).

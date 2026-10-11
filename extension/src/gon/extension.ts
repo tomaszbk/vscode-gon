@@ -28,6 +28,13 @@ class GonClient extends LanguageClient {
     if ('registrationType' in feature && feature.registrationType.method === 'workspace/executeCommand') {
       return;
     }
+    // Gon settings are snapshots passed at initialization and workspace/configuration.
+    // Our serialized configuration listener restarts affected clients. The generic
+    // client's listener also sends on unrelated changes and can auto-start a client
+    // while that restart is stopping it, producing a spurious start failure.
+    if ('registrationType' in feature && feature.registrationType.method === 'workspace/didChangeConfiguration') {
+      return;
+    }
     super.registerFeature(feature);
   }
 }

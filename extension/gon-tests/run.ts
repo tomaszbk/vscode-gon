@@ -4,6 +4,20 @@ import * as os from 'os';
 import { runTests } from '@vscode/test-electron';
 import { modernFeatures, legacyFeatures } from './coreFeatures';
 
+async function assertClientLogs(directory: string): Promise<void> {
+  for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await assertClientLogs(file);
+    } else if (entry.name.endsWith('.log')) {
+      const content = await fs.readFile(file, 'utf8');
+      if (/Sending notification workspace\/didChangeConfiguration failed|Starting server failed|Could not start gonpls/.test(content)) {
+        throw new Error('Language-client lifecycle failure in ' + file);
+      }
+    }
+  }
+}
+
 async function main() {
   // The Codex/VS Code terminal may inherit Electron's CLI-only mode.
   delete process.env.ELECTRON_RUN_AS_NODE;
@@ -111,6 +125,10 @@ func TestSlow(t *testing.T) {time.Sleep(30*time.Second)}
         PATH: toolPath
       }
     });
+    // A successful assertion suite must not conceal language-client errors in
+    // VS Code's output channel, including configuration notifications at restart.
+    await assertClientLogs(path.join(temporary, 'profile/logs'));
+    console.log('PASS: no language-client startup/configuration errors in the isolated VS Code logs');
   } catch (error) {
     await fs.cp(path.join(temporary, 'profile/logs'), '/tmp/vscode-gon-last-failure-logs', { recursive: true }).catch(() => {});
     throw error;
